@@ -1,0 +1,28 @@
+{
+  "name": "moments",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A calm, private, cross-device app for a family to record and understand a child's difficult moments.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:logic && npm run test:render",
+    "test:logic": "esbuild tests/logic.test.ts --bundle --platform=node --format=cjs --outfile=node_modules/.cache/moments/logic.cjs --log-level=warning && node node_modules/.cache/moments/logic.cjs",
+    "test:render": "esbuild tests/render.test.tsx --bundle --platform=node --format=cjs --jsx=automatic --outfile=node_modules/.cache/moments/render.cjs --log-level=warning && node node_modules/.cache/moments/render.cjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.9"
+  }
+}
