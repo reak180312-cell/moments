@@ -6,9 +6,59 @@ to understand them later.
 One shared copy of everything, on every device. Record in about ten seconds. Works
 without a signal and syncs by itself when the signal comes back.
 
+**Live at https://reak180312-cell.github.io/moments/**
+
 ---
 
-## Setting it up
+## Two backends
+
+Moments can keep the family's record in either of two places. The app above the sync
+layer does not know which is in use.
+
+| | **GitHub** (what the live site uses) | **Supabase** |
+|---|---|---|
+| Setup | none — a private repo, made for you | create a free project, run one SQL file |
+| Signing in a device | paste a GitHub key, once per device | email and password |
+| Changes reach other devices | on a poll, within ~10 seconds | pushed instantly |
+| Permissions | agreed between people; the app honours them | enforced by the database |
+| Audit trail | every change is a git commit | `event_edit_history` table |
+| Conflicting edits | version check, both sides kept | version check, both sides kept |
+| Offline | full | full |
+
+Both keep the parts that matter: client-generated UUIDs so a replayed write is never a
+duplicate, a version on every save so a conflicting edit is handed back rather than
+swallowed, and one shared copy that every device converges on.
+
+**Supabase is the better architecture** — instant, and it enforces who may do what in the
+database rather than in the interface. Switch to it whenever you like; the section below
+is all it takes, and the deployed app can be rebuilt against it without touching anything
+else.
+
+### Using the GitHub backend
+
+Nothing to set up. Open the site, press **Get a key from GitHub**, generate the token it
+pre-fills, paste it back. The app creates the private repository
+(`<your account>/moments-data`) the first time and seeds it.
+
+Every device connects with its own key, held in that device's own storage — never in the
+app, never in its code, never in a URL. To add someone: Settings → Family → **Invite
+someone**, give their GitHub username. They accept GitHub's invitation, open the same
+link, and connect with their own key.
+
+Be clear-eyed about one limit: anyone invited to that repository can read and write all of
+it. The roles in Settings shape what the app offers them, but only the Supabase backend
+turns them into rules a server enforces.
+
+To point a build at a different account:
+
+```bash
+VITE_BACKEND=github VITE_GH_OWNER=<account> VITE_GH_REPO=moments-data \
+  npx vite build --base=./ --outDir=docs
+```
+
+---
+
+## Setting up Supabase
 
 You need a free [Supabase](https://supabase.com) project. It holds your family's
 information; nobody else's server ever sees it.

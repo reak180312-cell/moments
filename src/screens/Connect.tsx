@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../data/store';
 import { GH_OWNER, GH_REPO } from '../lib/backend';
 import { enterPreview } from '../lib/demo';
-import { Button, Card, Field, Icon } from '../components/ui';
+import { Button, Card, Field } from '../components/ui';
 
 /**
  * Connecting a device to the family's record.
@@ -13,8 +13,12 @@ import { Button, Card, Field, Icon } from '../components/ui';
  * while the record stays private.
  */
 
-const TOKEN_URL =
-  'https://github.com/settings/personal-access-tokens/new';
+/** Pre-filled, so the quick path is: open, scroll, Generate, copy. */
+const QUICK_TOKEN_URL =
+  'https://github.com/settings/tokens/new?scopes=repo&description=Moments%20app';
+
+/** The tighter path: access to this one repository and nothing else. */
+const SCOPED_TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new';
 
 export function ConnectScreen() {
   const store = useStore();
@@ -59,25 +63,35 @@ export function ConnectScreen() {
 
             <Button
               variant="primary" block
-              onClick={() => { setShowSteps(true); window.open(TOKEN_URL, '_blank', 'noopener'); }}
+              onClick={() => { setShowSteps(true); window.open(QUICK_TOKEN_URL, '_blank', 'noopener'); }}
             >
-              <Icon name="chevron" size={16} /> Get a key from GitHub
+              Get a key from GitHub
             </Button>
 
             {showSteps && (
-              <ol
-                style={{
-                  color: 'var(--ink-2)', fontSize: '0.875rem', paddingLeft: '1.25rem',
-                  display: 'grid', gap: '0.5rem', margin: 0,
-                }}
-              >
-                <li>Sign in to GitHub if it asks.</li>
-                <li>Token name: anything, for example <strong>Moments</strong>.</li>
-                <li>Expiration: choose <strong>No expiration</strong>, or you will have to redo this.</li>
-                <li>Repository access: <strong>Only select repositories</strong> → pick <strong>{GH_REPO}</strong>. If it does not exist yet, choose <strong>All repositories</strong> just for now and this app will create it.</li>
-                <li>Permissions → Repository permissions → <strong>Contents</strong> → <strong>Read and write</strong>. Administration → <strong>Read and write</strong> only if the repository still needs creating.</li>
-                <li>Generate the token, copy it, and paste it below.</li>
-              </ol>
+              <div className="stack" style={{ gap: '0.75rem' }}>
+                <ol
+                  style={{
+                    color: 'var(--ink-2)', fontSize: '0.875rem', paddingLeft: '1.25rem',
+                    display: 'grid', gap: '0.5rem', margin: 0,
+                  }}
+                >
+                  <li>Sign in to GitHub if it asks.</li>
+                  <li>The name and permission are already filled in. Set <strong>Expiration</strong> to <strong>No expiration</strong>, or you will have to do this again later.</li>
+                  <li>Scroll to the bottom and press <strong>Generate token</strong>.</li>
+                  <li>Copy it, come back here, and paste it below.</li>
+                </ol>
+                <p className="help">
+                  That key can reach all of your repositories. If you would rather it
+                  reached only this family's record, make a{' '}
+                  <a href={SCOPED_TOKEN_URL} target="_blank" rel="noreferrer">fine-grained token</a>{' '}
+                  instead: <strong>Only select repositories</strong> → <strong>{GH_REPO}</strong>,
+                  and under Repository permissions set <strong>Contents</strong> to{' '}
+                  <strong>Read and write</strong>. If {GH_REPO} does not exist yet, give it{' '}
+                  <strong>All repositories</strong> and <strong>Administration: Read and write</strong>{' '}
+                  the first time, so the app can create it.
+                </p>
+              </div>
             )}
 
             <Field label="Your key" help="It is stored on this device only, never in the app or its code.">
