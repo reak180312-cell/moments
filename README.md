@@ -54,16 +54,34 @@ your family space, your child's profile and the starting list of triggers.
 
 ### 4. Put it on your devices
 
+The site is already hosted at **https://reak180312-cell.github.io/moments/**, served by
+GitHub Pages from the `docs/` folder on `main`.
+
+Right now `docs/` holds a **preview build**: sample data, no database, nothing synced.
+Once your Supabase keys are in `.env`, rebuild it as the real app and push:
+
 ```bash
-npm run build
+npx vite build --base=./ --outDir=docs    # reads .env, no VITE_DEMO
+git add docs && git commit -m "Deploy" && git push
 ```
 
-Upload `dist/` to any static host that serves HTTPS — Netlify, Vercel, Cloudflare Pages
-and GitHub Pages all work, and their free tiers are plenty. Then in Supabase open
-**Authentication → URL Configuration** and add your site's address to the redirect list.
+Pages redeploys within a minute or so, at the same address. To go back to the preview,
+rebuild with `VITE_DEMO=1` in front of that first command.
+
+Then in Supabase open **Authentication → URL Configuration** and add
+`https://reak180312-cell.github.io/moments/` to the redirect list, or sign-in emails will
+send people to the wrong place.
+
+The page carries `noindex`, so search engines leave it alone. The repository is public,
+which is what free Pages requires — it holds the code, never any family data. That lives
+in your Supabase project, behind a login. The anon key baked into the built file grants
+nothing on its own: every request is checked against the row level security policies.
 
 On the phone, open the site and choose **Add to Home Screen**. It then behaves like an
 app, including offline.
+
+Any other static host works too — Netlify, Vercel and Cloudflare Pages all take `dist/`
+from a plain `npm run build`.
 
 ---
 
