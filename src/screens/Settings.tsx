@@ -60,8 +60,12 @@ export function SettingsScreen() {
     try {
       const result = await store.deleteMyData(isOwner);
       setConfirmDelete(false);
-      toast(result === 'family_deleted' ? 'Everything has been deleted.' : 'You have left the family.');
-      await store.signOut().catch(() => {});
+      toast(
+        result === 'records_erased' ? 'Every record has been erased.'
+          : result === 'family_deleted' ? 'Everything has been deleted.'
+            : 'You have left the family.'
+      );
+      if (store.backend !== 'github') await store.signOut().catch(() => {});
       window.location.reload();
     } catch (err) {
       toast((err as Error).message);
@@ -318,6 +322,15 @@ export function SettingsScreen() {
                 removes every trace of it.
               </p>
             )}
+            {store.backend === 'github' && (
+              <p style={{ color: 'var(--ink-2)', fontSize: '0.875rem' }}>
+                Your record is stored in a private repository on your own GitHub account
+                (<a href={store.repoUrl} target="_blank" rel="noreferrer">{store.repoUrl.replace('https://github.com/', '')}</a>),
+                reachable only by the people you invite to it. This device holds its own
+                key, kept here and sent nowhere but GitHub. Every change is a commit, so
+                the record also keeps its own history.
+              </p>
+            )}
             <p style={{ color: 'var(--ink-2)', fontSize: '0.875rem' }}>
               This information belongs to your family. It is stored in your own database,
               reachable only by the people invited here, over an encrypted connection. There
@@ -370,13 +383,23 @@ export function SettingsScreen() {
       )}
       {confirmDelete && (
         <ConfirmDialog
-          title={isOwner ? 'Delete everything?' : 'Leave this family?'}
+          title={store.backend === 'github' ? 'Erase every record?' : isOwner ? 'Delete everything?' : 'Leave this family?'}
           body={
-            isOwner
+            store.backend === 'github' ? (
+              <>
+                This removes every moment, note and setting from the repository, for
+                everyone, and disconnects this device. Export your data first if you might
+                want it.
+                <br /><br />
+                One thing to be clear about: the files go, but git keeps the earlier
+                commits. To remove every last trace, delete the repository itself in
+                GitHub's settings afterwards.
+              </>
+            ) : isOwner
               ? 'You own this family space, so this deletes every moment, note and member for everyone. It cannot be undone. Export your data first if you might want it.'
               : 'You will be removed from this family and this device will be cleared. The family keeps its own records.'
           }
-          confirmLabel={isOwner ? 'Delete everything' : 'Leave family'}
+          confirmLabel={store.backend === 'github' ? 'Erase everything' : isOwner ? 'Delete everything' : 'Leave family'}
           destructive
           onConfirm={() => void deleteData()}
           onCancel={() => setConfirmDelete(false)}
@@ -501,6 +524,7 @@ function InviteSheet({ onClose }: { onClose: () => void }) {
   const [role, setRole] = useState<Role>('member');
   const [label, setLabel] = useState('');
   const [code, setCode] = useState<string | null>(null);
+  const [username, setUsername] = useState('');
   const [busy, setBusy] = useState(false);
 
   const create = async () => {
@@ -513,6 +537,65 @@ function InviteSheet({ onClose }: { onClose: () => void }) {
       setBusy(false);
     }
   };
+
+  const invite = async () => {
+    setBusy(true);
+    try {
+      await store.inviteGithubUser(username, role);
+      toast(`${username.trim()} has been invited.`);
+      onClose();
+    } catch (err) {
+      toast((err as Error).message);
+      setBusy(false);
+    }
+  };
+
+  if (store.backend === 'github') {
+    return (
+      <Sheet title="Invite someone" onClose={onClose}>
+        <div className="stack-lg">
+          <p style={{ color: 'var(--ink-2)', fontSize: '0.875rem' }}>
+            Your family's record lives in a private repository. Inviting someone gives
+            their GitHub account access to it — and to nothing else of yours.
+          </p>
+
+          <Field label="Their GitHub username" help="They will get an invitation from GitHub to accept.">
+            <input
+              className="input" value={username} placeholder="octocat"
+              autoCapitalize="none" autoCorrect="off" spellCheck={false}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          </Field>
+
+          <Fieldset label="What can they do?">
+            <Segmented
+              label="Role" value={role} onChange={setRole}
+              options={[
+                { value: 'member', label: 'Family member' },
+                { value: 'viewer', label: 'Viewer' },
+              ]}
+            />
+          </Fieldset>
+
+          <p className="help">
+            Be aware: with this setup, anyone invited to the repository can read and write
+            everything in it. The role above shapes what the app shows them, but it is an
+            agreement between you, not a rule the server enforces. The Supabase setup in
+            the README is the one that enforces it.
+          </p>
+
+          <Button variant="primary" size="lg" block disabled={busy || !username.trim()} onClick={() => void invite()}>
+            {busy ? 'Inviting…' : 'Send the invitation'}
+          </Button>
+
+          <p className="help">
+            Once they accept, they open this same link on their phone and connect it with
+            their own GitHub key. Then you are both looking at the same record.
+          </p>
+        </div>
+      </Sheet>
+    );
+  }
 
   return (
     <Sheet title="Invite someone" onClose={onClose}>

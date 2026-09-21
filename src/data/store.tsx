@@ -25,6 +25,11 @@ import {
   DEMO_ME, DEMO_PROFILE, buildDemoEvents, demoFamily, demoHelpful, demoMembers,
   demoPeople, demoProfiles, demoTriggers, previewActive,
 } from '../lib/demo';
+import * as gh from '../lib/github';
+import {
+  GH_OWNER, GH_REPO, backendMode, ghConfig, ghIdentity, ghRepoUrl, type BackendMode,
+  setGhIdentity, setGhToken,
+} from '../lib/backend';
 import {
   NO_PERMISSIONS,
   type AppUser, type ChildProfile, type Conflict, type EditHistoryEntry, type Family,
@@ -36,6 +41,15 @@ const EVENT_COLUMNS = '*';
 
 /** Preview mode: sample data, this device only, no network at all. */
 const PREVIEW = previewActive(isConfigured);
+
+/** Which store the family's record actually lives in. */
+const GITHUB = !PREVIEW && backendMode === 'github';
+
+/** A signed-in identity for the GitHub backend, shaped like a Supabase one so
+ *  everything above this file stays unaware of which backend is in use. */
+function fakeSession(userId: string): Session {
+  return { user: { id: userId } } as unknown as Session;
+}
 
 export interface EventDraft {
   id?: string;
@@ -118,6 +132,10 @@ interface Store extends State {
   addProfile: (name: string) => Promise<void>;
   setActiveProfile: (id: string) => void;
 
+  backend: BackendMode;
+  repoUrl: string;
+  connectGithub: (token: string, familyName: string, childName: string) => Promise<void>;
+  inviteGithubUser: (username: string, role: Role) => Promise<void>;
   preview: boolean;
   resetPreview: () => Promise<void>;
   resolveConflict: (eventId: string, keep: EventDraft | null) => Promise<void>;
@@ -218,6 +236,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       events.forEach((e) => {
         map[e.id] = { ...e, _pending: pendingIds.has(e.id) };
       });
+
+      if (GITHUB) {
+        // The stored identity is this device's sign-in: no round trip needed to
+        // open the app, so a cached record is on screen immediately.
+        const identity = ghIdentity();
+        patch({
+          ...(cached ?? {}),
+          events: map,
+          outbox,
+          vocabOutbox,
+          ready: true,
+          session: identity && ghConfig() ? fakeSession(identity.id) : null,
+        });
+        return;
+      }
+
       patch({
         ...(cached ?? {}),
         events: map,
@@ -292,6 +326,47 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const pull = useCallback(async () => {
     const s = stateRef.current;
+
+    if (GITHUB) {
+      const cfg = ghConfig();
+      if (!cfg || !s.session || !navigator.onLine) return;
+      patch({ loadingRemote: true });
+      try {
+        const snap = await gh.pullAll(cfg);
+        void local.putMany('events', snap.events);
+
+        const events: Record<string, MomentEvent> = {};
+        snap.events.forEach((e) => { events[e.id] = e; });
+        // A moment with an unsent local change keeps the local copy on screen.
+        stateRef.current.outbox.forEach((o) => {
+          const mine = stateRef.current.events[o.event_id];
+          if (mine) events[o.event_id] = mine;
+        });
+
+        const storedProfile = prefs.get<string | null>('profileId', null);
+        const fresh = {
+          family: snap.family,
+          members: snap.members,
+          people: snap.people,
+          profiles: snap.profiles,
+          triggers: snap.triggers,
+          helpful: snap.helpful,
+          activeProfileId:
+            snap.profiles.find((p) => p.id === storedProfile)?.id ?? snap.profiles[0]?.id ?? null,
+          me: snap.people[s.session.user.id] ?? null,
+          lastSyncedAt: new Date().toISOString(),
+        };
+        patch({ ...fresh, events, loadingRemote: false, error: null });
+        persistSnapshot(fresh);
+      } catch (err) {
+        patch({
+          loadingRemote: false,
+          error: isNetworkError(err) ? null : (err as Error).message,
+        });
+      }
+      return;
+    }
+
     if (!isConfigured || !s.session || !navigator.onLine) return;
     patch({ loadingRemote: true });
     try {
@@ -388,8 +463,81 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const flush = useCallback(async () => {
     if (flushing.current) return;
     const s = stateRef.current;
-    if (!isConfigured || !s.session || !navigator.onLine) return;
+    if (!navigator.onLine) return;
     if (!s.outbox.length && !s.vocabOutbox.length) return;
+
+    if (GITHUB) {
+      const cfg = ghConfig();
+      const identity = ghIdentity();
+      if (!cfg || !identity) return;
+
+      flushing.current = true;
+      patch({ syncing: true });
+      try {
+        for (const v of [...s.vocabOutbox].sort((a, b) => a.queued_at.localeCompare(b.queued_at))) {
+          try {
+            await gh.saveVocab(cfg, v.table, v.row as unknown as Vocab);
+          } catch (err) {
+            if (isNetworkError(err)) throw err;
+          }
+          await local.del('vocab_outbox', v.id);
+          patch((st) => ({ vocabOutbox: st.vocabOutbox.filter((x) => x.id !== v.id) }));
+        }
+
+        const queue = [...stateRef.current.outbox].sort((a, b) => a.queued_at.localeCompare(b.queued_at));
+        for (const entry of queue) {
+          if (entry.error) continue;
+          const mine = (entry.payload as unknown as MomentEvent | null)
+            ?? stateRef.current.events[entry.event_id];
+          if (!mine) { await clearOutbox(entry.event_id); continue; }
+
+          try {
+            const result = entry.kind === 'save'
+              ? await gh.saveEvent(cfg, mine, entry.expected_version, identity.id)
+              : await gh.deleteEvent(cfg, entry.event_id, mine.created_at, entry.expected_version, identity.id);
+
+            if (result && result.status === 'conflict') {
+              const theirs = result.event;
+              await local.put('events', theirs);
+              await clearOutbox(entry.event_id);
+              patch((st) => ({
+                events: { ...st.events, [entry.event_id]: theirs },
+                conflicts: [
+                  ...st.conflicts.filter((c) => c.event_id !== entry.event_id),
+                  { event_id: entry.event_id, mine, theirs, detected_at: new Date().toISOString() },
+                ],
+              }));
+              continue;
+            }
+
+            if (result) {
+              await local.put('events', result.event);
+              patch((st) => ({ events: { ...st.events, [entry.event_id]: result.event } }));
+            }
+            await clearOutbox(entry.event_id);
+          } catch (err) {
+            if (isNetworkError(err)) throw err;
+            const failed: OutboxEntry = { ...entry, attempts: entry.attempts + 1, error: (err as Error).message };
+            await local.put('outbox', failed);
+            patch((st) => ({
+              outbox: st.outbox.map((o) => (o.event_id === entry.event_id ? failed : o)),
+              events: st.events[entry.event_id]
+                ? { ...st.events, [entry.event_id]: { ...st.events[entry.event_id], _error: failed.error } }
+                : st.events,
+            }));
+          }
+        }
+        patch({ lastSyncedAt: new Date().toISOString() });
+      } catch {
+        /* offline again - the queue is intact */
+      } finally {
+        flushing.current = false;
+        patch({ syncing: false });
+      }
+      return;
+    }
+
+    if (!isConfigured || !s.session) return;
 
     flushing.current = true;
     patch({ syncing: true });
@@ -501,6 +649,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => { void supabase.removeChannel(channel); channelRef.current = null; };
   }, [state.family?.id, state.session, applyServerEvents, pull]);
 
+  /* ------------------------------------- GitHub: watching for other devices */
+
+  useEffect(() => {
+    if (!GITHUB || !state.session) return;
+    let etag: string | null = null;
+    let first = true;
+    let stopped = false;
+
+    const check = async () => {
+      const cfg = ghConfig();
+      if (!cfg || !navigator.onLine || document.visibilityState !== 'visible') return;
+      try {
+        const res = await gh.hasChanged(cfg, etag);
+        etag = res.etag;
+        // The first check only records where the record currently stands.
+        if (res.changed && !first) await pull();
+        first = false;
+      } catch {
+        /* a failed check is not worth telling anyone about; try again shortly */
+      }
+    };
+
+    void check();
+    const timer = setInterval(() => { if (!stopped) void check(); }, 10_000);
+    return () => { stopped = true; clearInterval(timer); };
+  }, [state.session, pull]);
+
   /* --------------------------------------------------- pull / flush timers */
 
   useEffect(() => {
@@ -599,7 +774,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await writeOutbox({
       event_id: id,
       kind: 'save',
-      payload: toPayload(event),
+      // The GitHub backend writes whole records, so the queue carries one.
+      payload: GITHUB
+        ? ({ ...event, _pending: undefined, _error: undefined } as unknown as Record<string, unknown>)
+        : toPayload(event),
       expected_version: expected,
       queued_at: queued?.queued_at ?? now,
       attempts: 0,
@@ -621,7 +799,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await writeOutbox({
       event_id: id,
       kind: 'delete',
-      payload: null,
+      payload: GITHUB ? ({ ...marked, _pending: undefined } as unknown as Record<string, unknown>) : null,
       expected_version: queued && queued.expected_version === null ? null : existing.version,
       queued_at: new Date().toISOString(),
       attempts: 0,
@@ -631,6 +809,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const restoreEvent = useCallback(async (id: string) => {
     if (!perms.edit) throw new Error('You do not have permission to edit moments.');
+
+    if (GITHUB) {
+      const cfg = ghConfig();
+      const identity = ghIdentity();
+      const existing = stateRef.current.events[id];
+      if (!cfg || !identity || !existing) return;
+      const restored = await gh.restoreEvent(cfg, id, existing.created_at, identity.id);
+      if (restored) {
+        await local.put('events', restored);
+        patch((st) => ({ events: { ...st.events, [id]: restored } }));
+      }
+      return;
+    }
+
     const { data, error } = await supabase.rpc('restore_event', { p_id: id });
     if (error) throw new Error(friendlyError(error));
     const result = data as { event?: Record<string, unknown> };
@@ -653,6 +845,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         });
       }
       return entries;
+    }
+
+    if (GITHUB) {
+      const cfg = ghConfig();
+      const event = stateRef.current.events[eventId];
+      if (!cfg || !event || !navigator.onLine) {
+        return (await local.kvGet<EditHistoryEntry[]>(`history:${eventId}`)) ?? [];
+      }
+      try {
+        const entries = await gh.getHistory(cfg, event);
+        await local.kvSet(`history:${eventId}`, entries);
+        return entries;
+      } catch {
+        return (await local.kvGet<EditHistoryEntry[]>(`history:${eventId}`)) ?? [];
+      }
     }
 
     const cached = await local.kvGet<EditHistoryEntry[]>(`history:${eventId}`);
@@ -775,9 +982,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     const pending = stateRef.current.outbox.length;
     if (pending > 0) throw new Error(`${pending} moment${pending === 1 ? '' : 's'} still waiting to sync. Stay signed in until they upload.`);
+
+    if (GITHUB) {
+      setGhToken(null);
+      setGhIdentity(null);
+      await local.wipe();
+      window.location.reload();
+      return;
+    }
+
     await supabase.auth.signOut();
     await local.wipe();
   }, []);
+
+  /** Connect this device to the family's private repository. */
+  const connectGithub = useCallback(async (token: string, familyName: string, childName: string) => {
+    const cfg = { owner: GH_OWNER, repo: GH_REPO, token: token.trim() };
+    const identity = await gh.whoAmI(cfg);
+    await gh.bootstrap(cfg, identity, familyName, childName);
+    setGhToken(cfg.token);
+    setGhIdentity(identity);
+    patch({ session: fakeSession(identity.id) });
+    await pull();
+  }, [patch, pull]);
 
   const createFamily = useCallback(async (familyName: string, childName: string) => {
     requireOnline();
@@ -800,19 +1027,53 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await pull();
   }, [pull]);
 
+  /** One place for every change to family.json, with the same retry-on-race
+   *  the event writes use. */
+  const editFamilyFile = useCallback(async (
+    message: string, change: (current: gh.FamilyFile) => gh.FamilyFile
+  ) => {
+    const cfg = ghConfig();
+    if (!cfg) throw new Error('Not connected to the family record.');
+    if (!navigator.onLine) {
+      throw new Error('This needs a connection. Try again when you are back online.');
+    }
+    await gh.updateFamily(cfg, message, change);
+    await pull();
+  }, [pull]);
+
   const updateMember = useCallback(async (memberId: string, update: Partial<FamilyMember>) => {
+    if (GITHUB) {
+      await editFamilyFile('Update what a family member can do', (f) => ({
+        ...f,
+        members: f.members.map((m) => (m.id === memberId ? { ...m, ...update } : m)),
+      }));
+      return;
+    }
     requireOnline();
     const { error } = await supabase.from('family_members').update(update).eq('id', memberId);
     if (error) throw new Error(friendlyError(error));
     await pull();
-  }, [pull]);
+  }, [editFamilyFile, pull]);
 
   const removeMember = useCallback(async (memberId: string) => {
+    if (GITHUB) {
+      const member = stateRef.current.members.find((m) => m.id === memberId);
+      await editFamilyFile('Remove a family member', (f) => ({
+        ...f,
+        members: f.members.filter((m) => m.id !== memberId),
+      }));
+      // Losing the listing is not enough - take the repository access too.
+      const cfg = ghConfig();
+      if (cfg && member?.user_id.startsWith('gh:')) {
+        await gh.removeCollaborator(cfg, member.user_id.slice(3)).catch(() => {});
+      }
+      return;
+    }
     requireOnline();
     const { error } = await supabase.from('family_members').delete().eq('id', memberId);
     if (error) throw new Error(friendlyError(error));
     await pull();
-  }, [pull]);
+  }, [editFamilyFile, pull]);
 
   const createInvite = useCallback(async (role: Role, label: string): Promise<string> => {
     requireOnline();
@@ -825,34 +1086,94 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return (data as { code: string }).code;
   }, []);
 
+  /** On the GitHub backend the invitation is repository access. */
+  const inviteGithubUser = useCallback(async (username: string, role: Role) => {
+    const cfg = ghConfig();
+    if (!cfg) throw new Error('Not connected to the family record.');
+    const clean = username.trim().replace(/^@/, '');
+    if (!clean) throw new Error('Enter their GitHub username.');
+    await gh.inviteCollaborator(cfg, clean);
+    await editFamilyFile(`Invite ${clean}`, (f) => {
+      const id = `gh:${clean}`;
+      if (f.members.some((m) => m.user_id === id)) return f;
+      return {
+        ...f,
+        people: { ...f.people, [id]: { id, email: null, display_name: clean, avatar_hue: 28 } },
+        members: [...f.members, {
+          id: uid(), family_id: f.family.id, user_id: id, role,
+          can_view: true, can_add: role !== 'viewer', can_edit: role !== 'viewer',
+          can_delete: false, can_view_stats: true, can_manage_members: false,
+          joined_at: new Date().toISOString(),
+        }],
+      };
+    });
+  }, [editFamilyFile]);
+
   const updateMyName = useCallback(async (name: string) => {
-    requireOnline();
     const s = stateRef.current;
     if (!s.session) return;
+    const myId = s.session.user.id;
+    if (GITHUB) {
+      await editFamilyFile('Update a name', (f) => ({
+        ...f,
+        people: {
+          ...f.people,
+          [myId]: {
+            ...(f.people[myId] ?? { id: myId, email: null, avatar_hue: 210 }),
+            display_name: name.trim() || 'Family member',
+          },
+        },
+      }));
+      return;
+    }
+    requireOnline();
     const { error } = await supabase.from('users')
       .update({ display_name: name.trim() || 'Family member', updated_at: new Date().toISOString() })
-      .eq('id', s.session.user.id);
+      .eq('id', myId);
     if (error) throw new Error(friendlyError(error));
     await pull();
-  }, [pull]);
+  }, [editFamilyFile, pull]);
 
   const renameFamily = useCallback(async (name: string) => {
+    if (GITHUB) {
+      await editFamilyFile('Rename the family', (f) => ({
+        ...f, family: { ...f.family, name: name.trim() || 'Our family' },
+      }));
+      return;
+    }
     requireOnline();
     const s = stateRef.current;
     if (!s.family) return;
     const { error } = await supabase.from('families').update({ name: name.trim() }).eq('id', s.family.id);
     if (error) throw new Error(friendlyError(error));
     await pull();
-  }, [pull]);
+  }, [editFamilyFile, pull]);
 
   const renameProfile = useCallback(async (profileId: string, name: string) => {
+    if (GITHUB) {
+      await editFamilyFile('Rename a child profile', (f) => ({
+        ...f,
+        profiles: f.profiles.map((p) => (p.id === profileId ? { ...p, name: name.trim() } : p)),
+      }));
+      return;
+    }
     requireOnline();
     const { error } = await supabase.from('profiles').update({ name: name.trim() }).eq('id', profileId);
     if (error) throw new Error(friendlyError(error));
     await pull();
-  }, [pull]);
+  }, [editFamilyFile, pull]);
 
   const addProfile = useCallback(async (name: string) => {
+    if (GITHUB) {
+      await editFamilyFile('Add a child profile', (f) => ({
+        ...f,
+        profiles: [...f.profiles, {
+          id: uid(), family_id: f.family.id, name: name.trim(), colour_hue: 28,
+          birth_year: null, is_archived: false, sort_order: f.profiles.length,
+        }],
+      }));
+      return;
+    }
     requireOnline();
     const s = stateRef.current;
     if (!s.family) return;
@@ -861,7 +1182,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
     if (error) throw new Error(friendlyError(error));
     await pull();
-  }, [pull]);
+  }, [editFamilyFile, pull]);
 
   const setActiveProfile = useCallback((id: string) => {
     prefs.set('profileId', id);
@@ -908,7 +1229,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [applyServerEvents, clearOutbox, patch]);
 
   const exportFamilyData = useCallback(async () => {
-    if (PREVIEW) {
+    if (PREVIEW || GITHUB) {
       const s = stateRef.current;
       return {
         exported_at: new Date().toISOString(),
@@ -931,6 +1252,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteMyData = useCallback(async (deleteFamily: boolean): Promise<string> => {
+    if (GITHUB) {
+      const cfg = ghConfig();
+      if (!cfg) throw new Error('Not connected to the family record.');
+      if (!navigator.onLine) throw new Error('This needs a connection.');
+      await gh.eraseAll(cfg);
+      setGhToken(null);
+      setGhIdentity(null);
+      await local.wipe();
+      return 'records_erased';
+    }
     requireOnline();
     const s = stateRef.current;
     if (!s.family) return 'nothing_to_delete';
@@ -980,6 +1311,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     updateVocab,
     updateMember, removeMember, createInvite, updateMyName, renameFamily,
     renameProfile, addProfile, setActiveProfile,
+    backend: backendMode,
+    repoUrl: ghRepoUrl,
+    connectGithub, inviteGithubUser,
     preview: PREVIEW, resetPreview,
     resolveConflict, dismissConflict, retryOutbox, discardOutbox,
     sync: async () => { await pull(); await flush(); },

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { isConfigured } from './lib/supabase';
 import { navigate, useRoute } from './lib/router';
 import { useStore } from './data/store';
 import { Button, Card, Icon, Spinner } from './components/ui';
 import { ConflictDialog } from './components/ConflictDialog';
 import { QuickRecordSheet } from './components/QuickRecord';
 import { AuthScreen } from './screens/Auth';
+import { ConnectScreen } from './screens/Connect';
 import { OnboardingScreen } from './screens/Onboarding';
 import { HomeScreen } from './screens/Home';
 import { RecordScreen } from './screens/Record';
@@ -36,9 +36,9 @@ export default function App() {
 
   useReminders();
 
-  if (!isConfigured && !store.preview) return <SetupScreen />;
+  if (store.backend === 'none' && !store.preview) return <SetupScreen />;
   if (!store.ready) return <Spinner label="Opening Moments" />;
-  if (!store.session) return <AuthScreen />;
+  if (!store.session) return store.backend === 'github' ? <ConnectScreen /> : <AuthScreen />;
   if (!store.family) {
     return store.loadingRemote ? <Spinner label="Finding your family" /> : <OnboardingScreen />;
   }
