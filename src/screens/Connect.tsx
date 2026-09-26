@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../data/store';
 import { GH_OWNER, GH_REPO } from '../lib/backend';
 import { enterPreview } from '../lib/demo';
-import { Button, Card, Field } from '../components/ui';
+import { Button, Card, Field, Spinner } from '../components/ui';
 
 /**
  * Connecting a device to the family's record.
@@ -19,6 +19,45 @@ const QUICK_TOKEN_URL =
 
 /** The tighter path: access to this one repository and nothing else. */
 const SCOPED_TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new';
+
+/**
+ * Shown between connecting and the record arriving. It never silently spins
+ * forever: if the fetch failed, this says so and offers a way out.
+ */
+export function ConnectingScreen() {
+  const store = useStore();
+
+  return (
+    <div className="screen" style={{ paddingTop: '4rem', maxWidth: '26rem' }}>
+      <div className="stack-lg">
+        {store.error ? (
+          <Card>
+            <div className="stack">
+              <h2>Could not open the record</h2>
+              <p role="alert" style={{ color: 'var(--ink-2)', fontSize: '0.875rem' }}>{store.error}</p>
+              <p className="help">
+                Usually this means the key does not have access to{' '}
+                <strong>{GH_OWNER}/{GH_REPO}</strong>, or it has expired.
+              </p>
+              <Button variant="primary" block onClick={() => void store.sync()}>Try again</Button>
+              <Button block onClick={() => void store.signOut()}>Use a different key</Button>
+            </div>
+          </Card>
+        ) : (
+          <>
+            <Spinner label="Opening your family's record" />
+            <p style={{ textAlign: 'center', color: 'var(--ink-3)', fontSize: '0.875rem' }}>
+              Opening your family's record…
+            </p>
+            <Button variant="plain" block onClick={() => void store.signOut()}>
+              Use a different key
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function ConnectScreen() {
   const store = useStore();

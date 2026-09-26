@@ -5,7 +5,7 @@ import { Button, Card, Icon, Spinner } from './components/ui';
 import { ConflictDialog } from './components/ConflictDialog';
 import { QuickRecordSheet } from './components/QuickRecord';
 import { AuthScreen } from './screens/Auth';
-import { ConnectScreen } from './screens/Connect';
+import { ConnectScreen, ConnectingScreen } from './screens/Connect';
 import { OnboardingScreen } from './screens/Onboarding';
 import { HomeScreen } from './screens/Home';
 import { RecordScreen } from './screens/Record';
@@ -40,6 +40,9 @@ export default function App() {
   if (!store.ready) return <Spinner label="Opening Moments" />;
   if (!store.session) return store.backend === 'github' ? <ConnectScreen /> : <AuthScreen />;
   if (!store.family) {
+    // The Supabase onboarding asks for things the GitHub backend does not use,
+    // so that backend gets its own waiting screen.
+    if (store.backend === 'github') return <ConnectingScreen />;
     return store.loadingRemote ? <Spinner label="Finding your family" /> : <OnboardingScreen />;
   }
 

@@ -329,7 +329,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     if (GITHUB) {
       const cfg = ghConfig();
-      if (!cfg || !s.session || !navigator.onLine) return;
+      // Read the identity from storage rather than from React state: a pull can
+      // be asked for in the same tick as the connection, before state settles.
+      const identity = ghIdentity();
+      if (!cfg || !identity || !navigator.onLine) return;
       patch({ loadingRemote: true });
       try {
         const snap = await gh.pullAll(cfg);
@@ -353,7 +356,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           helpful: snap.helpful,
           activeProfileId:
             snap.profiles.find((p) => p.id === storedProfile)?.id ?? snap.profiles[0]?.id ?? null,
-          me: snap.people[s.session.user.id] ?? null,
+          me: snap.people[identity.id] ?? null,
           lastSyncedAt: new Date().toISOString(),
         };
         patch({ ...fresh, events, loadingRemote: false, error: null });
