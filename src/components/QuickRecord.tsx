@@ -64,7 +64,7 @@ export function QuickRecordSheet({ onClose }: { onClose: () => void }) {
         <div role="group" aria-label="Trigger">
           <span className="label">Trigger</span>
           <div style={{ marginTop: '0.5rem' }}>
-            <VocabPicker kind="triggers" selected={triggerIds} onChange={setTriggerIds} limit={8} />
+            <VocabPicker kind="triggers" selected={triggerIds} onChange={setTriggerIds} />
           </div>
         </div>
 

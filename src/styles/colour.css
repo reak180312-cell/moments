@@ -301,3 +301,29 @@ body {
   font-size: 1.25rem;
   font-weight: 600;
 }
+
+/* ------------------------------------------------ nothing folded away */
+/* Every question on the record form is visible at once, so the form is
+   long - the Save button travels with it rather than waiting at the end. */
+
+.or-rule {
+  display: flex; align-items: center; gap: 0.75rem;
+  color: var(--ink-3); font-size: 0.8125rem;
+}
+.or-rule::before, .or-rule::after {
+  content: ""; flex: 1; height: 1px; background: var(--line-soft);
+}
+
+.save-bar {
+  position: sticky;
+  bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  z-index: 20;
+  padding: 0.625rem 0;
+  margin: 0 -0.25rem;
+  background: color-mix(in srgb, var(--page) 86%, transparent);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+}
+@media (min-width: 60rem) {
+  .save-bar { bottom: 1.25rem; }
+}

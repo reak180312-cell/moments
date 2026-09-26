@@ -37,12 +37,11 @@ export function useVocabUsage(kind: 'triggers' | 'helpful') {
 }
 
 export function VocabPicker({
-  kind, selected, onChange, limit = 10, allowCreate = true,
+  kind, selected, onChange, allowCreate = true,
 }: {
   kind: 'triggers' | 'helpful';
   selected: string[];
   onChange: (ids: string[]) => void;
-  limit?: number;
   allowCreate?: boolean;
 }) {
   const store = useStore();
@@ -50,15 +49,12 @@ export function VocabPicker({
   const list = kind === 'triggers' ? store.triggers : store.helpful;
   const ordered = useMemo(() => rank(list, usage), [list, usage]);
 
-  const [expanded, setExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const visible = expanded ? ordered : ordered.slice(0, limit);
-  const hidden = ordered.length - visible.length;
-  // A selected option that has scrolled out of the shortlist stays visible.
-  const extras = ordered.filter((v) => selected.includes(v.id) && !visible.includes(v));
+  // Every option is on screen. Nothing a family might reach for is a tap away.
+  const visible = ordered;
 
   const toggle = (id: string) => {
     onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
@@ -81,7 +77,7 @@ export function VocabPicker({
   return (
     <div className="stack" style={{ gap: '0.5rem' }}>
       <div className="chip-wrap">
-        {[...visible, ...extras].map((v) => (
+        {visible.map((v) => (
           <Chip
             key={v.id}
             selected={selected.includes(v.id)}
@@ -92,12 +88,6 @@ export function VocabPicker({
             {v.name}
           </Chip>
         ))}
-
-        {hidden > 0 && !expanded && (
-          <Chip dashed onClick={() => setExpanded(true)}>
-            +{hidden} more
-          </Chip>
-        )}
 
         {allowCreate && !adding && (
           <Chip dashed onClick={() => setAdding(true)}>

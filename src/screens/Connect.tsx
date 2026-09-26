@@ -147,7 +147,7 @@ export function ConnectScreen() {
               />
             </Field>
 
-            <details>
+            <details open>
               <summary style={{ cursor: 'pointer', color: 'var(--ink-2)', fontSize: '0.875rem' }}>
                 Setting this up for the first time?
               </summary>

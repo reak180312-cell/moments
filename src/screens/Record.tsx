@@ -3,12 +3,10 @@ import { useStore, type EventDraft } from '../data/store';
 import { navigate, useBack } from '../lib/router';
 import { formatDuration, fromLocalInput, toLocalInput } from '../lib/time';
 import { LOCATIONS, type HungryValue, type SleepQuality } from '../lib/types';
-import { Button, Card, Chip, Field, Fieldset, Icon, IconButton, Segmented, useToast } from '../components/ui';
+import { Button, Card, Chip, Field, Fieldset, IconButton, useToast } from '../components/ui';
 import { DifficultyScale } from '../components/Difficulty';
 import { VocabPicker } from '../components/VocabPicker';
 import { TimerControls, useStopwatch } from '../components/Timer';
-
-type DurationMode = 'none' | 'timer' | 'manual';
 
 export function RecordScreen({ eventId, duplicateOf }: { eventId: string | null; duplicateOf: string | null }) {
   const store = useStore();
@@ -35,13 +33,6 @@ export function RecordScreen({ eventId, duplicateOf }: { eventId: string | null;
   const [hungry, setHungry] = useState<HungryValue | null>(source?.hungry ?? null);
   const [schoolDay, setSchoolDay] = useState<boolean | null>(source?.school_day ?? null);
   const [unusualDay, setUnusualDay] = useState<boolean | null>(source?.unusual_day ?? null);
-  const [showContext, setShowContext] = useState(
-    Boolean(source?.sleep_quality || source?.hungry || source?.school_day !== null)
-  );
-
-  const [durationMode, setDurationMode] = useState<DurationMode>(
-    source?.duration_seconds ? 'manual' : 'none'
-  );
   const [minutes, setMinutes] = useState(
     source?.duration_seconds ? String(Math.round(source.duration_seconds / 60)) : ''
   );
@@ -56,12 +47,13 @@ export function RecordScreen({ eventId, duplicateOf }: { eventId: string | null;
   }, [duplicateOf, source]);
 
   const durationSeconds = (): number | null => {
-    if (durationMode === 'timer' && stopwatch.seconds > 0) return stopwatch.seconds;
-    if (durationMode === 'manual' && minutes.trim()) {
+    if (minutes.trim()) {
       const n = Number(minutes);
       return Number.isFinite(n) && n >= 0 ? Math.round(n * 60) : null;
     }
-    return null;   // "Skip" means no duration, including when clearing one
+    // A timer still running when Save is pressed counts for what it has run.
+    if (stopwatch.started && stopwatch.seconds > 0) return stopwatch.seconds;
+    return null;   // an empty box means no duration, including when clearing one
   };
 
   const save = async () => {
@@ -123,21 +115,35 @@ export function RecordScreen({ eventId, duplicateOf }: { eventId: string | null;
         </Card>
 
         <Card>
-          <Fieldset label="Duration" help="Optional — you can leave this out entirely.">
-            <Segmented
-              label="How to record duration"
-              value={durationMode}
-              onChange={(v) => setDurationMode(v)}
-              options={[
-                { value: 'none', label: 'Skip' },
-                { value: 'timer', label: 'Start Timer' },
-                { value: 'manual', label: 'Enter duration' },
-              ]}
-            />
-          </Fieldset>
+          <Fieldset label="How long did it last?">
+            <div className="stack">
+              <p className="help" style={{ marginTop: '-0.125rem' }}>
+                Optional. Type it, tap one, or run the timer.
+              </p>
+              <div className="row" style={{ gap: '0.5rem' }}>
+                <input
+                  className="input" type="number" min="0" max="600" inputMode="numeric"
+                  style={{ maxWidth: '7rem' }}
+                  aria-label="Duration in minutes"
+                  value={minutes} onChange={(e) => setMinutes(e.target.value)}
+                  placeholder="12"
+                />
+                <span style={{ color: 'var(--ink-2)' }}>minutes</span>
+              </div>
 
-          {durationMode === 'timer' && (
-            <div style={{ marginTop: '1rem' }}>
+              <div className="chip-wrap">
+                {[2, 5, 10, 15, 30].map((m) => (
+                  <Chip key={m} selected={minutes === String(m)} onClick={() => setMinutes(String(m))}>
+                    {m} min
+                  </Chip>
+                ))}
+                {minutes && (
+                  <Chip dashed onClick={() => setMinutes('')}>Clear</Chip>
+                )}
+              </div>
+
+              <div className="or-rule" aria-hidden="true"><span>or time it</span></div>
+
               <TimerControls
                 seconds={stopwatch.seconds}
                 running={stopwatch.running}
@@ -147,35 +153,11 @@ export function RecordScreen({ eventId, duplicateOf }: { eventId: string | null;
                 onResume={stopwatch.start}
                 onFinish={() => {
                   stopwatch.pause();
-                  setDurationMode('manual');
                   setMinutes(String(Math.max(1, Math.round(stopwatch.seconds / 60))));
                 }}
               />
             </div>
-          )}
-
-          {durationMode === 'manual' && (
-            <div style={{ marginTop: '1rem' }}>
-              <Field label="How long did it last?">
-                <div className="row" style={{ gap: '0.5rem' }}>
-                  <input
-                    className="input" type="number" min="0" max="600" inputMode="numeric"
-                    style={{ maxWidth: '8rem' }}
-                    value={minutes} onChange={(e) => setMinutes(e.target.value)}
-                    placeholder="12"
-                  />
-                  <span style={{ color: 'var(--ink-2)' }}>minutes</span>
-                </div>
-              </Field>
-              <div className="chip-wrap" style={{ marginTop: '0.625rem' }}>
-                {[2, 5, 10, 15, 30].map((m) => (
-                  <Chip key={m} selected={minutes === String(m)} onClick={() => setMinutes(String(m))}>
-                    {m} min
-                  </Chip>
-                ))}
-              </div>
-            </div>
-          )}
+          </Fieldset>
         </Card>
 
         <Card id="difficulty-section">
@@ -231,61 +213,55 @@ export function RecordScreen({ eventId, duplicateOf }: { eventId: string | null;
         </Card>
 
         <Card>
-          <button
-            type="button"
-            className="row-between"
-            style={{ width: '100%', background: 'none', border: 0, padding: 0, cursor: 'pointer' }}
-            aria-expanded={showContext}
-            onClick={() => setShowContext((v) => !v)}
-          >
-            <span className="label">Anything else about the day? <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>Optional</span></span>
-            <Icon name={showContext ? 'close' : 'plus'} size={18} />
-          </button>
+          <div className="stack">
+            <span className="label">
+              Anything else about the day?{' '}
+              <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>All optional</span>
+            </span>
 
-          {showContext && (
-            <div className="stack" style={{ marginTop: '1rem' }}>
-              <Fieldset label="Sleep last night">
-                <div className="chip-wrap">
-                  {(['poor', 'okay', 'good'] as SleepQuality[]).map((s) => (
-                    <Chip key={s} selected={sleep === s} onClick={() => setSleep(sleep === s ? null : s)}>
-                      {s === 'poor' ? 'Poor' : s === 'okay' ? 'Okay' : 'Good'}
-                    </Chip>
-                  ))}
-                </div>
-              </Fieldset>
+            <Fieldset label="Sleep last night">
+              <div className="chip-wrap">
+                {(['poor', 'okay', 'good'] as SleepQuality[]).map((s) => (
+                  <Chip key={s} selected={sleep === s} onClick={() => setSleep(sleep === s ? null : s)}>
+                    {s === 'poor' ? 'Poor' : s === 'okay' ? 'Okay' : 'Good'}
+                  </Chip>
+                ))}
+              </div>
+            </Fieldset>
 
-              <Fieldset label="Hungry?">
-                <div className="chip-wrap">
-                  {(['yes', 'no', 'unknown'] as HungryValue[]).map((h) => (
-                    <Chip key={h} selected={hungry === h} onClick={() => setHungry(hungry === h ? null : h)}>
-                      {h === 'yes' ? 'Yes' : h === 'no' ? 'No' : 'Not sure'}
-                    </Chip>
-                  ))}
-                </div>
-              </Fieldset>
+            <Fieldset label="Hungry?">
+              <div className="chip-wrap">
+                {(['yes', 'no', 'unknown'] as HungryValue[]).map((h) => (
+                  <Chip key={h} selected={hungry === h} onClick={() => setHungry(hungry === h ? null : h)}>
+                    {h === 'yes' ? 'Yes' : h === 'no' ? 'No' : 'Not sure'}
+                  </Chip>
+                ))}
+              </div>
+            </Fieldset>
 
-              <Fieldset label="School day?">
-                <div className="chip-wrap">
-                  <Chip selected={schoolDay === true} onClick={() => setSchoolDay(schoolDay === true ? null : true)}>Yes</Chip>
-                  <Chip selected={schoolDay === false} onClick={() => setSchoolDay(schoolDay === false ? null : false)}>No</Chip>
-                </div>
-              </Fieldset>
+            <Fieldset label="School day?">
+              <div className="chip-wrap">
+                <Chip selected={schoolDay === true} onClick={() => setSchoolDay(schoolDay === true ? null : true)}>Yes</Chip>
+                <Chip selected={schoolDay === false} onClick={() => setSchoolDay(schoolDay === false ? null : false)}>No</Chip>
+              </div>
+            </Fieldset>
 
-              <Fieldset label="Unusual day?">
-                <div className="chip-wrap">
-                  <Chip selected={unusualDay === true} onClick={() => setUnusualDay(unusualDay === true ? null : true)}>Yes</Chip>
-                  <Chip selected={unusualDay === false} onClick={() => setUnusualDay(unusualDay === false ? null : false)}>No</Chip>
-                </div>
-              </Fieldset>
-            </div>
-          )}
+            <Fieldset label="Unusual day?">
+              <div className="chip-wrap">
+                <Chip selected={unusualDay === true} onClick={() => setUnusualDay(unusualDay === true ? null : true)}>Yes</Chip>
+                <Chip selected={unusualDay === false} onClick={() => setUnusualDay(unusualDay === false ? null : false)}>No</Chip>
+              </div>
+            </Fieldset>
+          </div>
         </Card>
 
         {error && <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
 
-        <Button variant="primary" size="lg" block disabled={busy} onClick={() => void save()}>
-          {busy ? 'Saving…' : editing ? 'Save changes' : 'Save Moment'}
-        </Button>
+        <div className="save-bar">
+          <Button variant="primary" size="lg" block disabled={busy} onClick={() => void save()}>
+            {busy ? 'Saving…' : editing ? 'Save changes' : 'Save Moment'}
+          </Button>
+        </div>
 
         {durationSeconds() !== null && (
           <p className="help" style={{ textAlign: 'center' }}>
