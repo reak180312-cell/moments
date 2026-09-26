@@ -4,7 +4,7 @@ import { navigate } from '../lib/router';
 import { formatTime } from '../lib/time';
 import { Button, Sheet, useToast } from './ui';
 import { DifficultyScale } from './Difficulty';
-import { VocabPicker } from './VocabPicker';
+import { TagInput } from './TagInput';
 
 /**
  * Quick Record: difficulty, trigger, done. Everything else can be added later
@@ -61,10 +61,13 @@ export function QuickRecordSheet({ onClose }: { onClose: () => void }) {
           <DifficultyScale value={difficulty} onChange={(v) => { setDifficulty(v); setError(null); }} compact />
         </div>
 
-        <div role="group" aria-label="Trigger">
-          <span className="label">Trigger</span>
+        <div role="group" aria-label="What set it off">
+          <span className="label">What set it off?</span>
           <div style={{ marginTop: '0.5rem' }}>
-            <VocabPicker kind="triggers" selected={triggerIds} onChange={setTriggerIds} />
+            <TagInput
+              kind="triggers" selected={triggerIds} onChange={setTriggerIds}
+              placeholder="Type it in a word or two…"
+            />
           </div>
         </div>
 

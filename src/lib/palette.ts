@@ -74,3 +74,17 @@ export const SLOT_VAR: Record<ColourSlot, string> = {
 export function triggerColour(name: string): string {
   return SLOT_VAR[triggerSlot(name)];
 }
+
+/**
+ * Joining up what someone typed with what the family has written before.
+ *
+ * Case and stray spacing are ignored, so "homework", "Homework " and "HOMEWORK"
+ * are one thing. This is the single rule that lets people write freely while
+ * the trigger counts on the Insights page still add up; both the recording
+ * field and the store go through here so they can never disagree.
+ */
+export function matchVocab<T extends { name: string }>(list: T[], text: string): T | undefined {
+  const key = text.trim().toLowerCase();
+  if (!key) return undefined;
+  return list.find((v) => v.name.trim().toLowerCase() === key);
+}

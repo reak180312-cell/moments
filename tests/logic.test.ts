@@ -188,4 +188,35 @@ const quoted = eventsToCsv(
 );
 assert.ok(quoted.includes('"He said ""no"", loudly'), 'quotes and newlines escaped');
 
+
+/* ------------------------------------- typing joins up with what came before */
+
+import { matchVocab } from '../src/lib/palette';
+
+const vocab = [
+  { id: 'a', name: 'Homework' },
+  { id: 'b', name: 'Change of plans' },
+  { id: 'c', name: 'Tired' },
+];
+
+// The whole point: write it your own way, and it still counts as the same thing.
+assert.equal(matchVocab(vocab, 'homework')?.id, 'a');
+assert.equal(matchVocab(vocab, 'HOMEWORK')?.id, 'a');
+assert.equal(matchVocab(vocab, '  Homework  ')?.id, 'a');
+assert.equal(matchVocab(vocab, 'HomeWork')?.id, 'a');
+assert.equal(matchVocab(vocab, 'change of plans')?.id, 'b');
+
+// Genuinely different words stay different, and nothing matches on a fragment.
+assert.equal(matchVocab(vocab, 'homework club'), undefined, 'not a loose match');
+assert.equal(matchVocab(vocab, 'home'), undefined, 'nor a prefix match');
+assert.equal(matchVocab(vocab, 'Dentist'), undefined, 'a new word is new');
+assert.equal(matchVocab(vocab, ''), undefined, 'empty matches nothing');
+assert.equal(matchVocab(vocab, '   '), undefined);
+assert.equal(matchVocab([], 'Homework'), undefined);
+
+// Counting holds up when the same trigger was typed four different ways.
+const typedFourWays = ['Homework', 'homework', ' HOMEWORK ', 'HomeWork']
+  .map((text) => matchVocab(vocab, text)?.id);
+assert.deepEqual(new Set(typedFourWays), new Set(['a']), 'one trigger, not four');
+
 console.log('all logic checks passed');

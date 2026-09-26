@@ -5,7 +5,7 @@ import { formatDuration, fromLocalInput, toLocalInput } from '../lib/time';
 import { LOCATIONS, type HungryValue, type SleepQuality } from '../lib/types';
 import { Button, Card, Chip, Field, Fieldset, IconButton, useToast } from '../components/ui';
 import { DifficultyScale } from '../components/Difficulty';
-import { VocabPicker } from '../components/VocabPicker';
+import { TagInput } from '../components/TagInput';
 import { TimerControls, useStopwatch } from '../components/Timer';
 
 export function RecordScreen({ eventId, duplicateOf }: { eventId: string | null; duplicateOf: string | null }) {
@@ -167,8 +167,11 @@ export function RecordScreen({ eventId, duplicateOf }: { eventId: string | null;
         </Card>
 
         <Card>
-          <Fieldset label="Trigger" help="Choose as many as fit. There is no wrong answer.">
-            <VocabPicker kind="triggers" selected={triggerIds} onChange={setTriggerIds} />
+          <Fieldset label="What set it off?">
+            <TagInput
+              kind="triggers" selected={triggerIds} onChange={setTriggerIds}
+              placeholder="Homework, tired, a change of plan…"
+            />
           </Fieldset>
         </Card>
 
@@ -183,24 +186,25 @@ export function RecordScreen({ eventId, duplicateOf }: { eventId: string | null;
         </Card>
 
         <Card>
-          <Fieldset label="What helped?" help="Anything that seemed to make things easier.">
-            <VocabPicker kind="helpful" selected={helpfulIds} onChange={setHelpfulIds} />
+          <Fieldset label="What helped?">
+            <TagInput
+              kind="helpful" selected={helpfulIds} onChange={setHelpfulIds}
+              placeholder="A quiet room, a break, going outside…"
+            />
           </Fieldset>
         </Card>
 
         <Card>
-          <Fieldset label="Where?">
-            <div className="chip-wrap">
-              {LOCATIONS.map((l) => (
-                <Chip
-                  key={l} selected={location === l}
-                  onClick={() => setLocation(location === l ? null : l)}
-                >
-                  {l}
-                </Chip>
-              ))}
-            </div>
-          </Fieldset>
+          <Field label="Where?" help="Anywhere you like — the suggestions are only suggestions.">
+            <input
+              className="input" list="moment-places" value={location ?? ''}
+              placeholder="Home, school, the car…"
+              onChange={(e) => setLocation(e.target.value || null)}
+            />
+            <datalist id="moment-places">
+              {LOCATIONS.map((l) => <option key={l} value={l} />)}
+            </datalist>
+          </Field>
         </Card>
 
         <Card>

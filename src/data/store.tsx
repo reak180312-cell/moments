@@ -26,6 +26,7 @@ import {
   demoPeople, demoProfiles, demoTriggers, previewActive,
 } from '../lib/demo';
 import * as gh from '../lib/github';
+import { matchVocab } from '../lib/palette';
 import {
   GH_OWNER, GH_REPO, backendMode, ghConfig, ghIdentity, ghRepoUrl, type BackendMode,
   setGhIdentity, setGhToken,
@@ -887,7 +888,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const clean = name.trim();
     if (!clean) return null;
     const list = table === 'triggers' ? s.triggers : s.helpful;
-    const dup = list.find((t) => t.name.toLowerCase() === clean.toLowerCase());
+    const dup = matchVocab(list, clean);
     if (dup) return dup;
 
     const row: Vocab = {

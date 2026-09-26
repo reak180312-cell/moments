@@ -4,7 +4,7 @@ import { navigate, useBack } from '../lib/router';
 import { formatClock, formatTime } from '../lib/time';
 import { Button, Card, IconButton, Sheet, useToast } from '../components/ui';
 import { DifficultyScale } from '../components/Difficulty';
-import { VocabPicker } from '../components/VocabPicker';
+import { TagInput } from '../components/TagInput';
 
 /**
  * Live mode: for when it is happening right now.
@@ -160,7 +160,10 @@ export function LiveMomentScreen({ draftId }: { draftId: string | null }) {
             </Button>
           }
         >
-          <VocabPicker kind="triggers" selected={triggerIds} onChange={setTriggerIds} />
+          <TagInput
+            kind="triggers" selected={triggerIds} onChange={setTriggerIds}
+            placeholder="Type what set it off…"
+          />
         </Sheet>
       )}
     </div>
