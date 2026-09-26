@@ -159,6 +159,8 @@ export function buildDemoEvents(now = new Date()): MomentEvent[] {
     const roll = rand();
     let count = roll < 0.34 ? 0 : roll < 0.66 ? 1 : roll < 0.88 ? 2 : 3;
     if (weekend && count > 1) count -= 1;
+    // Today always has something, so the home screen shows its real self.
+    if (dayOffset === 0 && count === 0) count = 2;
 
     for (let i = 0; i < count; i += 1) {
       // Most often late afternoon, some mornings before school.
@@ -166,6 +168,14 @@ export function buildDemoEvents(now = new Date()): MomentEvent[] {
       const hour = r < 0.14 ? 7 : r < 0.24 ? 12 : r < 0.72 ? 16 + Math.floor(rand() * 3) : 19 + Math.floor(rand() * 2);
       const start = new Date(day);
       start.setHours(hour, Math.floor(rand() * 60), 0, 0);
+
+      if (dayOffset === 0) {
+        // Today is only as long as it has been so far. Place these in the hours
+        // just gone, so the home screen has something whatever time it is.
+        const minutesAgo = 6 + rand() * 300;
+        const recent = new Date(now.getTime() - minutesAgo * 60_000);
+        start.setTime(Math.max(day.getTime(), recent.getTime()));
+      }
       if (start.getTime() > now.getTime()) continue;
 
       // A gentle drift downwards over the period, so comparisons have something

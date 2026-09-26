@@ -11,6 +11,7 @@ import {
   summarise, triggerCounts,
 } from '../lib/stats';
 import { Button, Card, Chip, EmptyState, Icon } from '../components/ui';
+import { triggerClass } from '../lib/palette';
 import { ChartFrame, ColumnChart, ComparisonBars, DataTable, LineChart, RankedBars, TrendMark } from '../components/charts';
 
 const RANGES: { key: RangeKey; label: string }[] = [
@@ -112,14 +113,15 @@ export function InsightsScreen() {
         ) : (
           <>
             <div className="tile-grid">
-              <Tile label="Moments" value={String(stats.count)} sub={range.label.toLowerCase()} />
+              <Tile tone="c-1" label="Moments" value={String(stats.count)} sub={range.label.toLowerCase()} />
               <Tile
+                tone="c-7"
                 label="Average difficulty"
                 value={stats.avgDifficulty === null ? '—' : String(stats.avgDifficulty)}
                 unit={stats.avgDifficulty === null ? undefined : '/10'}
               />
-              <Tile label="Total time" value={stats.totalSeconds ? formatDuration(stats.totalSeconds) : '—'} />
-              <Tile label="Average length" value={stats.avgSeconds ? formatDuration(stats.avgSeconds) : '—'} />
+              <Tile tone="c-3" label="Total time" value={stats.totalSeconds ? formatDuration(stats.totalSeconds) : '—'} />
+              <Tile tone="c-5" label="Average length" value={stats.avgSeconds ? formatDuration(stats.avgSeconds) : '—'} />
             </div>
 
             {observations.length > 0 && (
@@ -152,6 +154,7 @@ export function InsightsScreen() {
             >
               <ColumnChart
                 data={buckets.map((b) => ({ label: bucketLabel(b.key), value: b.count }))}
+                colour="var(--cat-1)"
                 ariaSummary={`Moments recorded per ${grain} over ${range.label.toLowerCase()}. ${stats.count} in total.`}
               />
             </ChartFrame>
@@ -171,6 +174,7 @@ export function InsightsScreen() {
                 data={buckets.map((b) => ({ label: bucketLabel(b.key), value: b.avgDifficulty }))}
                 domain={[0, 10]}
                 format={(v) => `${Math.round(v * 10) / 10}/10`}
+                colour="var(--cat-7)"
                 ariaSummary={`Average recorded difficulty over ${range.label.toLowerCase()}.`}
               />
             </ChartFrame>
@@ -193,6 +197,7 @@ export function InsightsScreen() {
               <ColumnChart
                 data={buckets.map((b) => ({ label: bucketLabel(b.key), value: Math.round(b.totalSeconds / 60) }))}
                 format={(v) => `${v} min`}
+                colour="var(--cat-3)"
                 ariaSummary="Total recorded minutes per period."
               />
             </ChartFrame>
@@ -209,7 +214,9 @@ export function InsightsScreen() {
             >
               {triggerStats.length ? (
                 <RankedBars
-                  items={triggerStats.slice(0, 8).map((t) => ({ id: t.id, label: t.name, value: t.count }))}
+                  items={triggerStats.slice(0, 8).map((t) => ({
+                    id: t.id, label: t.name, value: t.count, tone: triggerClass(t.name),
+                  }))}
                   onSelect={(id) => navigate(`/trigger/${id}`)}
                   format={(v) => `${v}×`}
                 />
@@ -230,9 +237,10 @@ export function InsightsScreen() {
             >
               <div className="stack">
                 <RankedBars
-                  items={parts.map((p) => ({
+                  items={parts.map((p, idx) => ({
                     label: `${p.key} · ${PARTS_OF_DAY.find((x) => x.key === p.key)?.hint ?? ''}`,
                     value: p.count,
+                    tone: ['c-4', 'c-2', 'c-7', 'c-1'][idx],
                   }))}
                   format={(v) => `${v}×`}
                 />
@@ -242,6 +250,7 @@ export function InsightsScreen() {
                     data={hours.map((h) => ({ label: h.hour % 3 === 0 ? hourLabel(h.hour) : '', value: h.count }))}
                     height={130}
                     labelEvery={3}
+                    colour="var(--cat-2)"
                     ariaSummary="Moments recorded in each hour of the day."
                   />
                 </div>
@@ -261,6 +270,7 @@ export function InsightsScreen() {
               <ColumnChart
                 data={dows.map((d) => ({ label: d.label, value: d.count }))}
                 labelEvery={1}
+                colour="var(--cat-5)"
                 ariaSummary="Moments recorded on each day of the week."
               />
             </ChartFrame>
@@ -365,9 +375,9 @@ export function InsightsScreen() {
   );
 }
 
-function Tile({ label, value, unit, sub }: { label: string; value: string; unit?: string; sub?: string }) {
+function Tile({ label, value, unit, sub, tone }: { label: string; value: string; unit?: string; sub?: string; tone?: string }) {
   return (
-    <div className="tile">
+    <div className={`tile ${tone ?? ''}`}>
       <span className="tile-label">{label}</span>
       <span className="tile-value">{value}{unit && <span className="unit">{unit}</span>}</span>
       {sub && <span className="tile-sub">{sub}</span>}

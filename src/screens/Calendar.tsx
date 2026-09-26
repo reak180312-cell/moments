@@ -75,6 +75,7 @@ export function CalendarScreen() {
                   className={[
                     'cal-day',
                     dClass(peak),
+                    list.length ? 'has-any' : '',
                     otherMonth ? 'is-other' : '',
                     isToday ? 'is-today' : '',
                     isSelected ? 'is-selected' : '',

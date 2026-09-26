@@ -82,10 +82,10 @@ export function DataTable({
 
 export function ColumnChart({
   data, height = 160, format = (v: number) => String(v), labelEvery,
-  emphasiseLast, ariaSummary,
+  emphasiseLast, ariaSummary, colour = 'var(--series-1)',
 }: {
   data: Point[]; height?: number; format?: (v: number) => string;
-  labelEvery?: number; emphasiseLast?: boolean; ariaSummary?: string;
+  labelEvery?: number; emphasiseLast?: boolean; ariaSummary?: string; colour?: string;
 }) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
@@ -139,7 +139,7 @@ export function ColumnChart({
                 <rect
                   x={x(i)} y={y(v)} width={barW} height={h}
                   rx={Math.min(4, barW / 2)}
-                  fill={isPeak ? 'var(--series-1)' : 'color-mix(in srgb, var(--series-1) 55%, transparent)'}
+                  fill={isPeak ? colour : `color-mix(in srgb, ${colour} 52%, transparent)`}
                   pointerEvents="none"
                 />
               )}
@@ -174,9 +174,10 @@ export function ColumnChart({
 
 export function LineChart({
   data, height = 170, format = (v: number) => String(v), domain, ariaSummary, labelEvery,
+  colour = 'var(--series-1)',
 }: {
   data: Point[]; height?: number; format?: (v: number) => string;
-  domain?: [number, number]; ariaSummary?: string; labelEvery?: number;
+  domain?: [number, number]; ariaSummary?: string; labelEvery?: number; colour?: string;
 }) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
@@ -224,13 +225,13 @@ export function LineChart({
           </g>
         ))}
 
-        {area && <path d={area} fill="color-mix(in srgb, var(--series-1) 10%, transparent)" />}
-        {path && <path d={path} fill="none" stroke="var(--series-1)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
+        {area && <path d={area} fill={`color-mix(in srgb, ${colour} 12%, transparent)`} />}
+        {path && <path d={path} fill="none" stroke={colour} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />}
 
         {present.map((p) => (
           <circle
             key={p.i} cx={x(p.i)} cy={y(p.value)} r={present.length > 30 ? 0 : 4}
-            fill="var(--series-1)" stroke="var(--surface)" strokeWidth="2"
+            fill={colour} stroke="var(--surface)" strokeWidth="2"
           />
         ))}
 
@@ -271,7 +272,7 @@ export function LineChart({
 export function RankedBars({
   items, format = (v: number) => String(v), max: maxOverride, onSelect,
 }: {
-  items: { id?: string; label: string; value: number; sub?: string }[];
+  items: { id?: string; label: string; value: number; sub?: string; tone?: string }[];
   format?: (v: number) => string;
   max?: number;
   onSelect?: (id: string) => void;
@@ -282,7 +283,10 @@ export function RankedBars({
       {items.map((item) => {
         const row = (
           <>
-            <span className="bar-label" title={item.label}>{item.label}</span>
+            <span className="bar-label" title={item.label}>
+              {item.tone && <span className="bar-dot" aria-hidden="true" />}
+              {item.label}
+            </span>
             <span className="bar-track">
               <span
                 className="bar-fill"
@@ -294,7 +298,7 @@ export function RankedBars({
         );
         return onSelect && item.id ? (
           <button
-            key={item.id} type="button" className="bar-row"
+            key={item.id} type="button" className={`bar-row ${item.tone ?? ''}`}
             style={{ background: 'none', border: 0, padding: '0.125rem 0', cursor: 'pointer', textAlign: 'left' }}
             onClick={() => onSelect(item.id!)}
             aria-label={`${item.label}, ${format(item.value)}`}
@@ -302,7 +306,7 @@ export function RankedBars({
             {row}
           </button>
         ) : (
-          <div className="bar-row" key={item.label}>{row}</div>
+          <div className={`bar-row ${item.tone ?? ''}`} key={item.label}>{row}</div>
         );
       })}
     </div>

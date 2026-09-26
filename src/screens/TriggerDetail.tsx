@@ -8,6 +8,7 @@ import { byPeriod, forRange, grainFor, triggerCounts } from '../lib/stats';
 import { Button, Card, Chip, EmptyState, IconButton } from '../components/ui';
 import { ChartFrame, ColumnChart, DataTable } from '../components/charts';
 import { MomentList } from '../components/EventList';
+import { triggerClass, triggerColour } from '../lib/palette';
 
 const RANGES: { key: RangeKey; label: string }[] = [
   { key: '30d', label: '30 days' },
@@ -75,7 +76,7 @@ export function TriggerDetailScreen({ triggerId }: { triggerId: string }) {
       </header>
 
       <div className="stack-lg">
-        <Card className="card--pad-lg">
+        <Card className={`card--pad-lg ${triggerClass(trigger.name)}`} style={{ background: 'linear-gradient(135deg, var(--cat-wash), var(--surface) 70%)', borderColor: 'var(--cat-edge)' }}>
           <div className="row-between">
             <div>
               <h2 style={{ fontSize: '1.5rem' }}>{trigger.name}</h2>
@@ -104,7 +105,7 @@ export function TriggerDetailScreen({ triggerId }: { triggerId: string }) {
         </div>
 
         <div className="tile-grid">
-          <Tile label="Recorded" value={String(stat?.count ?? 0)} sub="times" />
+          <Tile tone={triggerClass(trigger.name)} label="Recorded" value={String(stat?.count ?? 0)} sub="times" />
           <Tile
             label="Average difficulty"
             value={stat?.avgDifficulty === null || stat === undefined ? '—' : String(stat.avgDifficulty)}
@@ -139,6 +140,7 @@ export function TriggerDetailScreen({ triggerId }: { triggerId: string }) {
         >
           <ColumnChart
             data={buckets.map((b) => ({ label: bucketLabel(b.key), value: b.count }))}
+            colour={triggerColour(trigger.name)}
             ariaSummary={`How often ${trigger.name} was recorded over ${range.label.toLowerCase()}.`}
           />
         </ChartFrame>
@@ -158,9 +160,9 @@ export function TriggerDetailScreen({ triggerId }: { triggerId: string }) {
   );
 }
 
-function Tile({ label, value, unit, sub, small }: { label: string; value: string; unit?: string; sub?: string; small?: boolean }) {
+function Tile({ label, value, unit, sub, small, tone }: { label: string; value: string; unit?: string; sub?: string; small?: boolean; tone?: string }) {
   return (
-    <div className="tile">
+    <div className={`tile ${tone ?? ''}`}>
       <span className="tile-label">{label}</span>
       <span className="tile-value" style={small ? { fontSize: '1rem', lineHeight: 1.4 } : undefined}>
         {value}{unit && <span className="unit">{unit}</span>}

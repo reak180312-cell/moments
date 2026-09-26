@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../data/store';
 import { Chip } from './ui';
+import { helpfulClass, triggerClass } from '../lib/palette';
 import type { Vocab } from '../lib/types';
 
 /**
@@ -81,7 +82,13 @@ export function VocabPicker({
     <div className="stack" style={{ gap: '0.5rem' }}>
       <div className="chip-wrap">
         {[...visible, ...extras].map((v) => (
-          <Chip key={v.id} selected={selected.includes(v.id)} onClick={() => toggle(v.id)}>
+          <Chip
+            key={v.id}
+            selected={selected.includes(v.id)}
+            onClick={() => toggle(v.id)}
+            tone={kind === 'triggers' ? triggerClass(v.name) : helpfulClass}
+          >
+            <span className="chip-dot" aria-hidden="true" />
             {v.name}
           </Chip>
         ))}

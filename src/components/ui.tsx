@@ -16,7 +16,7 @@ const PATHS: Record<IconName, ReactNode> = {
   history: <><path d="M3.5 12a8.5 8.5 0 1 0 2.8-6.3" /><path d="M3 4v4h4" /><path d="M12 7.5V12l3 2" /></>,
   insights: <><path d="M4 19V10" /><path d="M9.5 19V5" /><path d="M15 19v-6" /><path d="M20.5 19v-9" /></>,
   calendar: <><rect x="3.5" y="5" width="17" height="15.5" rx="3" /><path d="M8 3v4M16 3v4M3.5 10h17" /></>,
-  settings: <><circle cx="12" cy="12" r="3.2" /><path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2 5.5 5.5" /></>,
+  settings: <><path d="M4 7h8M16 7h4M4 12h3M11 12h9M4 17h10M18 17h2" /><circle cx="14" cy="7" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="16" cy="17" r="2" /></>,
   plus: <path d="M12 5v14M5 12h14" />,
   chevron: <path d="m9 5 7 7-7 7" />,
   back: <path d="m15 5-7 7 7 7" />,
@@ -205,11 +205,15 @@ export function SwitchRow({
 }
 
 export function Chip({
-  children, selected, onClick, dashed, title,
-}: { children: ReactNode; selected?: boolean; onClick?: () => void; dashed?: boolean; title?: string }) {
+  children, selected, onClick, dashed, title, tone,
+}: {
+  children: ReactNode; selected?: boolean; onClick?: () => void;
+  dashed?: boolean; title?: string; tone?: string;
+}) {
   return (
     <button
-      type="button" className={`chip ${dashed ? 'chip--add' : ''}`}
+      type="button"
+      className={['chip', dashed ? 'chip--add' : '', tone ? `chip--cat ${tone}` : ''].filter(Boolean).join(' ')}
       aria-pressed={selected === undefined ? undefined : selected}
       onClick={onClick} title={title}
     >

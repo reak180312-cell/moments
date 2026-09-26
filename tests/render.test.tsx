@@ -82,4 +82,45 @@ assert.ok(seg.includes('aria-pressed="true"'), 'the active segment is announced'
 const sw = html(<SwitchRow title="Reduce motion" checked onChange={() => {}} />);
 assert.ok(sw.includes('role="switch"') && sw.includes('aria-checked="true"'));
 
+/* ------------------------------------------------------ colour identity */
+
+import { readFileSync } from 'node:fs';
+import { Chip } from '../src/components/ui';
+import { HELPFUL_SLOT, helpfulClass, triggerClass, triggerSlot } from '../src/lib/palette';
+
+// A colour belongs to the thing, not to where it sits in a list.
+assert.equal(triggerClass('Homework'), triggerClass('homework'), 'case does not change identity');
+assert.equal(triggerClass('  Tired  '), triggerClass('Tired'), 'nor does stray whitespace');
+assert.notEqual(triggerSlot('Homework'), triggerSlot('Tired'), 'the common triggers differ');
+assert.notEqual(triggerSlot('Homework'), triggerSlot('School'));
+assert.notEqual(triggerSlot('Noise'), triggerSlot('Change of plans'));
+assert.equal(triggerSlot('Unknown'), 0, '"Unknown" stays neutral rather than picking a hue');
+assert.equal(triggerSlot('Other'), 0);
+// A custom trigger is stable across runs and never lands on the reserved slot.
+for (const name of ['Getting dressed', 'Dentist', 'Loud hand dryer', 'Swimming']) {
+  assert.equal(triggerClass(name), triggerClass(name));
+  assert.notEqual(triggerSlot(name), HELPFUL_SLOT, `${name} does not borrow the "helped" hue`);
+}
+assert.equal(helpfulClass, `c-${HELPFUL_SLOT}`, 'responses share one hue');
+
+// Colour never carries meaning by itself: the chip shows its name beside the dot.
+const chip = html(<Chip tone={triggerClass('Homework')} selected onClick={() => {}}>Homework</Chip>);
+assert.ok(chip.includes('chip--cat'), 'the chip is toned');
+assert.ok(chip.includes('Homework'), 'and still says what it is');
+assert.ok(chip.includes('aria-pressed="true"'), 'selection is announced, not just shaded');
+
+const tonedBars = html(
+  <RankedBars items={[{ id: 't', label: 'Tired', value: 3, tone: triggerClass('Tired') }]} />
+);
+assert.ok(tonedBars.includes('Tired') && tonedBars.includes('bar-dot'), 'bars label themselves too');
+
+// No red anywhere in the categorical palette - nothing a child does is an error.
+const colourCss = readFileSync('src/styles/colour.css', 'utf8');
+const catHexes = [...colourCss.matchAll(/--cat-\d:\s*(#[0-9a-f]{6})/gi)].map((m) => m[1].toLowerCase());
+assert.ok(catHexes.length >= 16, `both themes define the palette (${catHexes.length} values)`);
+['#e34948', '#e66767', '#d03b3b', '#ff0000'].forEach((red) => {
+  assert.ok(!catHexes.includes(red), `${red} is not in the palette`);
+});
+assert.ok(!/--cat-\d:\s*#(e|f)[0-9a-f]?[0-2]/i.test(colourCss), 'no alarm reds crept in');
+
 console.log('all render checks passed');

@@ -1,0 +1,303 @@
+/* =====================================================================
+   Moments - colour identity, warmth and movement
+   ---------------------------------------------------------------------
+   Eight hues, validated in both themes against this app's own surfaces
+   (worst adjacent CVD delta-E 9.1 light / 8.4 dark; normal-vision 19.6 /
+   19.3). Slot 0 is neutral, slot 6 belongs to "what helped", and there is
+   no red anywhere: nothing a child does is an error state.
+
+   Three of the light-mode hues sit below 3:1 against the surface, so the
+   relief rule applies - every mark wearing one also carries its name.
+   ===================================================================== */
+
+:root {
+  --cat-0: #8a887f;
+  --cat-1: #2a78d6;
+  --cat-2: #eb6834;
+  --cat-3: #1baf7a;
+  --cat-4: #eda100;
+  --cat-5: #e87ba4;
+  --cat-6: #008300;
+  --cat-7: #4a3aa7;
+  --cat-ink-mix: 74%;
+  --cat-ink-base: #0e1014;
+  --wash-strength: 14%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --cat-0: #8f8e88;
+    --cat-1: #3987e5;
+    --cat-2: #d95926;
+    --cat-3: #199e70;
+    --cat-4: #c98500;
+    --cat-5: #d55181;
+    --cat-6: #0ca30c;
+    --cat-7: #9085e9;
+    --cat-ink-mix: 58%;
+    --cat-ink-base: #ffffff;
+    --wash-strength: 18%;
+  }
+}
+
+:root[data-theme="dark"] {
+  --cat-0: #8f8e88;
+  --cat-1: #3987e5;
+  --cat-2: #d95926;
+  --cat-3: #199e70;
+  --cat-4: #c98500;
+  --cat-5: #d55181;
+  --cat-6: #0ca30c;
+  --cat-7: #9085e9;
+  --cat-ink-mix: 58%;
+  --cat-ink-base: #ffffff;
+  --wash-strength: 18%;
+}
+
+.c-0 { --cat: var(--cat-0); }
+.c-1 { --cat: var(--cat-1); }
+.c-2 { --cat: var(--cat-2); }
+.c-3 { --cat: var(--cat-3); }
+.c-4 { --cat: var(--cat-4); }
+.c-5 { --cat: var(--cat-5); }
+.c-6 { --cat: var(--cat-6); }
+.c-7 { --cat: var(--cat-7); }
+
+/* Wash and ink are derived, so each hue is written in exactly one place. */
+.c-0, .c-1, .c-2, .c-3, .c-4, .c-5, .c-6, .c-7 {
+  --cat-wash: color-mix(in srgb, var(--cat) var(--wash-strength), var(--surface));
+  --cat-edge: color-mix(in srgb, var(--cat) 42%, transparent);
+  --cat-ink: color-mix(in srgb, var(--cat) var(--cat-ink-mix), var(--cat-ink-base));
+}
+
+/* ------------------------------------------------------------ the page */
+
+body {
+  background:
+    radial-gradient(85rem 38rem at 10% -14%, color-mix(in srgb, var(--cat-1) 13%, transparent), transparent 62%),
+    radial-gradient(65rem 34rem at 94% -8%, color-mix(in srgb, var(--cat-7) 12%, transparent), transparent 64%),
+    var(--page);
+  background-attachment: fixed;
+}
+
+/* ------------------------------------------------------------- the hero */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  padding: 1.25rem 1.125rem 1.375rem;
+  color: #fff;
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--cat-7) 90%, #000) 0%,
+      var(--cat-1) 54%,
+      color-mix(in srgb, var(--cat-3) 70%, var(--cat-1)) 100%);
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--cat-1) 26%, transparent);
+}
+.hero::after {
+  content: "";
+  position: absolute; inset: -45% -25% auto auto;
+  width: 22rem; height: 22rem; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.22), transparent 62%);
+  pointer-events: none;
+}
+.hero > * { position: relative; }
+.hero .hero-eyebrow {
+  font-size: 0.75rem; font-weight: 650; letter-spacing: 0.06em;
+  text-transform: uppercase; opacity: 0.88;
+}
+.hero h1 { font-size: 1.6rem; margin-top: 0.25rem; color: inherit; }
+.hero .hero-sub { font-size: 0.9375rem; opacity: 0.92; margin-top: 0.5rem; }
+
+.hero-pills { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.875rem; }
+.hero-pill {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  padding: 0.3125rem 0.6875rem; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 0.8125rem; font-weight: 600;
+  backdrop-filter: blur(6px);
+}
+
+/* ------------------------------------------------------ coloured chips */
+
+.chip--cat[aria-pressed="true"],
+.chip--cat.is-on {
+  background: var(--cat-wash);
+  border-color: var(--cat-edge);
+  color: var(--cat-ink);
+}
+.chip--cat[aria-pressed="true"]::before,
+.chip--cat.is-on::before { content: none; }
+
+.chip-dot {
+  width: 0.5rem; height: 0.5rem; border-radius: 50%; flex: none;
+  background: var(--cat, var(--ink-3));
+}
+
+.tag--cat {
+  background: var(--cat-wash);
+  color: var(--cat-ink);
+  box-shadow: inset 0 0 0 1px var(--cat-edge);
+}
+
+/* ------------------------------------------------------ coloured tiles */
+
+.tile {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--cat-wash, var(--surface)) 0%, var(--surface) 76%);
+  transition: transform var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease);
+}
+.tile::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--cat, transparent);
+}
+.tile:hover { transform: translateY(-1px); box-shadow: var(--shadow-2); }
+.tile .tile-icon {
+  position: absolute; right: 0.5rem; top: 0.5rem;
+  color: var(--cat, var(--ink-3)); opacity: 0.45;
+}
+.tile .tile-label { padding-right: 1.5rem; }
+
+/* --------------------------------------------- a livelier record button */
+
+.record-btn {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--cat-7) 88%, #000) 0%,
+      var(--accent) 58%,
+      color-mix(in srgb, var(--cat-3) 58%, var(--accent)) 100%);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--cat-1) 34%, transparent);
+}
+.record-btn > * { position: relative; }
+.record-btn::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 42%, rgba(255, 255, 255, 0.24) 50%, transparent 58%);
+  transform: translateX(-130%);
+  animation: sheen 7s var(--ease) infinite;
+}
+@keyframes sheen {
+  0%, 74% { transform: translateX(-130%); }
+  90%, 100% { transform: translateX(130%); }
+}
+
+.fab {
+  background: linear-gradient(140deg, color-mix(in srgb, var(--cat-7) 80%, #000), var(--accent) 72%);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--cat-1) 38%, transparent);
+}
+
+/* ---------------------------------------- timeline rows carry an identity */
+
+.tl-item {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(100deg, var(--cat-wash, var(--surface)) 0%, var(--surface) 44%);
+}
+.tl-item::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--cat, var(--line));
+}
+.tl-item > * { position: relative; }
+
+/* ------------------------------------------ a deeper difficulty gradient */
+
+.difficulty-btn.is-on {
+  background: linear-gradient(160deg,
+    color-mix(in srgb, var(--fill) 82%, #fff) 0%,
+    var(--fill) 56%,
+    color-mix(in srgb, var(--fill) 88%, #000) 100%);
+}
+.dscore {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--fill) 86%, #fff), var(--fill));
+}
+
+/* ---------------------------------------------------- navigation with life */
+
+.nav a[aria-current="page"] {
+  background: linear-gradient(140deg, var(--accent-wash),
+    color-mix(in srgb, var(--cat-7) 14%, var(--accent-wash)));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+/* ------------------------------------------------------------- headings */
+
+.section-title { display: flex; align-items: center; gap: 0.5rem; }
+.section-title::before {
+  content: "";
+  width: 0.375rem; height: 0.375rem; border-radius: 50%; flex: none;
+  background: var(--cat, var(--accent));
+}
+
+/* ------------------------------------------------------- charts & bars */
+
+.bar-row { --cat: var(--series-1); }
+.bar-fill {
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--cat, var(--series-1)) 72%, #fff),
+    var(--cat, var(--series-1)));
+}
+.bar-label { display: flex; align-items: center; gap: 0.5rem; }
+.bar-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; flex: none; background: var(--cat); }
+
+.cal-day.has-any { background: linear-gradient(180deg, var(--tint), var(--surface) 86%); }
+
+/* --------------------------------------------------------------- motion */
+
+.rise-in {
+  animation: riseIn var(--dur-2) var(--ease) both;
+  animation-delay: var(--delay, 0ms);
+}
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.pop-in {
+  animation: popIn 320ms var(--ease) both;
+  animation-delay: var(--delay, 0ms);
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Reduced motion is honoured globally in app.css, which switches every
+   animation off - including the sheen and these entrances. */
+
+/* ------------------------------------ the difficulty scale reads as a scale */
+/* Every step carries its own place on the ramp before anything is chosen, so
+   the control looks like the gradient it is. Still one hue: 10 is a deeper
+   shade of 1, never a different, angrier colour.                             */
+
+.difficulty-btn {
+  background: var(--tint);
+  border-color: color-mix(in srgb, var(--fill) 22%, transparent);
+  color: var(--ink-2);
+}
+.difficulty-btn:hover {
+  background: color-mix(in srgb, var(--fill) 34%, var(--surface));
+}
+.difficulty-btn.is-under {
+  background: color-mix(in srgb, var(--fill) 42%, var(--surface));
+  border-color: transparent;
+  color: var(--ink);
+}
+
+/* ------------------------------------------------------- fewer stray wraps */
+
+.chip, .segmented button { white-space: nowrap; }
+.segmented button { font-size: 0.8125rem; padding: 0 0.5rem; }
+@media (min-width: 26rem) { .segmented button { font-size: 0.875rem; padding: 0 0.75rem; } }
+
+/* A missing value should read as absence, not as a redaction bar. */
+.tile-value.is-empty {
+  color: var(--ink-3);
+  font-size: 1.25rem;
+  font-weight: 600;
+}

@@ -5,6 +5,7 @@ import { StoreProvider } from './data/store';
 import { ToastProvider } from './components/ui';
 import { applyAppearance } from './lib/theme';
 import './styles/app.css';
+import './styles/colour.css';
 
 applyAppearance();
 

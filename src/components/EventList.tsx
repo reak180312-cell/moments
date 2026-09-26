@@ -3,21 +3,27 @@ import { formatDayLabel, formatDuration, formatTime } from '../lib/time';
 import type { MomentEvent } from '../lib/types';
 import { useStore } from '../data/store';
 import { DifficultyBadge, difficultyWord } from './Difficulty';
+import { helpfulClass, triggerClass } from '../lib/palette';
 import { Icon } from './ui';
 
 export function MomentRow({ event, showDay }: { event: MomentEvent; showDay?: boolean }) {
-  const { triggerName, nameOf } = useStore();
+  const { triggerName, helpfulName, nameOf } = useStore();
   const triggers = event.trigger_ids.map(triggerName);
+  const helped = event.helpful_ids.map(helpfulName);
   const isOpen = event.status === 'draft';
 
   const summary = triggers.length
     ? triggers.join(' · ')
     : event.description?.trim() || 'No trigger recorded';
 
+  // The row takes its colour from its first trigger, so a scan down the
+  // timeline shows repetition. The names are right there too.
+  const tone = triggers.length ? triggerClass(triggers[0]) : 'c-0';
+
   return (
     <button
       type="button"
-      className="tl-item"
+      className={`tl-item ${tone}`}
       onClick={() => navigate(`/event/${event.id}`)}
       aria-label={
         `${showDay ? formatDayLabel(event.start_time) + ', ' : ''}${formatTime(event.start_time)}. ` +
@@ -38,8 +44,10 @@ export function MomentRow({ event, showDay }: { event: MomentEvent; showDay?: bo
         <span className="tl-meta" aria-hidden="true">
           {showDay && event.duration_seconds ? <span>{formatDuration(event.duration_seconds)}</span> : null}
           {event.location && <span className="tag">{event.location}</span>}
-          {event.helpful_ids.length > 0 && (
-            <span className="tag">Helped: {event.helpful_ids.length}</span>
+          {helped.length > 0 && (
+            <span className={`tag tag--cat ${helpfulClass}`}>
+              {helped.length === 1 ? helped[0] : `${helped.length} helped`}
+            </span>
           )}
           <span>· {nameOf(event.created_by)}</span>
         </span>

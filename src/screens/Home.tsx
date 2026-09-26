@@ -5,6 +5,7 @@ import { formatDuration, formatTime, startOfDay, endOfDay, formatLongDate } from
 import { inRange, summarise, weeklySummary } from '../lib/stats';
 import { Button, Card, EmptyState, Icon } from '../components/ui';
 import { MomentList, SyncStatus } from '../components/EventList';
+import { triggerClass } from '../lib/palette';
 
 export function HomeScreen({ onQuickRecord }: { onQuickRecord: () => void }) {
   const store = useStore();
@@ -34,12 +35,24 @@ export function HomeScreen({ onQuickRecord }: { onQuickRecord: () => void }) {
 
   return (
     <div className="screen">
-      <header className="screen-head">
-        <div>
-          <p className="eyebrow">{formatLongDate(now)}</p>
-          <h1>How has today been?</h1>
-          {child && profiles.length > 1 && (
-            <p className="eyebrow" style={{ marginTop: '0.25rem' }}>{child.name}</p>
+      <header className="hero rise-in">
+        <p className="hero-eyebrow">{formatLongDate(now)}</p>
+        <h1>How has today been?</h1>
+        <p className="hero-sub">
+          {stats.count === 0
+            ? 'Nothing recorded yet today.'
+            : `${stats.count} moment${stats.count === 1 ? '' : 's'} so far${
+              stats.avgDifficulty !== null ? `, averaging ${stats.avgDifficulty} out of 10` : ''}.`}
+        </p>
+        <div className="hero-pills">
+          {child && <span className="hero-pill">{child.name}</span>}
+          {stats.topTrigger && (
+            <span className="hero-pill">
+              {stats.topTrigger.name} × {stats.topTrigger.count}
+            </span>
+          )}
+          {stats.totalSeconds > 0 && (
+            <span className="hero-pill">{formatDuration(stats.totalSeconds)} in total</span>
           )}
         </div>
       </header>
@@ -77,26 +90,31 @@ export function HomeScreen({ onQuickRecord }: { onQuickRecord: () => void }) {
         <section aria-label="Today at a glance">
           <div className="tile-grid">
             <Tile
+              tone="c-1" icon="bolt" delay={40}
               label="Difficult moments"
               value={String(stats.count)}
               sub={stats.count === 0 ? 'Nothing recorded yet' : 'recorded today'}
             />
             <Tile
+              tone="c-7" icon="insights" delay={90}
               label="Average difficulty"
               value={stats.avgDifficulty === null ? '—' : String(stats.avgDifficulty)}
               unit={stats.avgDifficulty === null ? undefined : '/10'}
               sub={stats.count > 0 ? `across ${stats.count} moment${stats.count === 1 ? '' : 's'}` : '—'}
             />
             <Tile
+              tone="c-3" icon="clock" delay={140}
               label="Total time"
               value={stats.totalSeconds ? formatDuration(stats.totalSeconds) : '—'}
               sub={stats.timedCount ? `${stats.timedCount} timed` : 'no durations yet'}
             />
             <Tile
+              tone={stats.topTrigger ? triggerClass(stats.topTrigger.name) : 'c-0'}
+              icon="pin" delay={190}
               label="Most common trigger"
               value={stats.topTrigger?.name ?? '—'}
               small
-              sub={stats.topTrigger ? `${stats.topTrigger.count}×  today` : 'none recorded'}
+              sub={stats.topTrigger ? `${stats.topTrigger.count}× today` : 'none recorded'}
             />
           </div>
         </section>
@@ -156,12 +174,22 @@ export function HomeScreen({ onQuickRecord }: { onQuickRecord: () => void }) {
 }
 
 function Tile({
-  label, value, unit, sub, small,
-}: { label: string; value: string; unit?: string; sub?: string; small?: boolean }) {
+  label, value, unit, sub, small, tone, icon, delay = 0,
+}: {
+  label: string; value: string; unit?: string; sub?: string; small?: boolean;
+  tone?: string; icon?: 'bolt' | 'insights' | 'clock' | 'pin'; delay?: number;
+}) {
   return (
-    <div className="tile">
+    <div
+      className={`tile rise-in ${tone ?? ''}`}
+      style={{ '--delay': `${delay}ms` } as React.CSSProperties}
+    >
+      {icon && <span className="tile-icon"><Icon name={icon} size={18} /></span>}
       <span className="tile-label">{label}</span>
-      <span className="tile-value" style={small ? { fontSize: '1.125rem', lineHeight: 1.3 } : undefined}>
+      <span
+        className={`tile-value ${value === '—' ? 'is-empty' : ''}`}
+        style={small && value !== '—' ? { fontSize: '1.125rem', lineHeight: 1.3 } : undefined}
+      >
         {value}
         {unit && <span className="unit">{unit}</span>}
       </span>
