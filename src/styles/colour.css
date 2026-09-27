@@ -396,7 +396,9 @@ body {
   position: relative;
   display: block;
   width: 100%;
-  min-height: 13rem;
+  aspect-ratio: 1152 / 1000;
+  min-height: 14rem;
+  max-height: 70vh;
   padding: 0;
   border: 0;
   border-radius: var(--radius-xl);
@@ -405,7 +407,7 @@ body {
   color: #fff;
   background-color: var(--accent);
   background-size: cover;
-  background-position: center 14%;
+  background-position: center top;
   background-repeat: no-repeat;
   box-shadow: 0 14px 34px color-mix(in srgb, var(--cat-1) 26%, transparent);
   transition: transform var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease);
@@ -435,10 +437,11 @@ body {
 .record-hero-label {
   position: relative;
   display: flex;
+  position: absolute;
+  inset: auto 0 0 0;
   align-items: flex-end;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 13rem;
   padding: 1.125rem 1.25rem 1.25rem;
   font-size: 1.1875rem;
   font-weight: 680;
@@ -520,3 +523,7 @@ body {
   overflow: hidden;
 }
 .score-sub { font-size: 0.75rem; color: var(--ink-3); }
+
+@media (min-width: 34rem) {
+  .record-hero { max-width: 26rem; margin-inline: auto; }
+}
