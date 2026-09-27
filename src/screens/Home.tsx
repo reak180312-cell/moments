@@ -205,7 +205,6 @@ function RecordButton({
     <button
       type="button"
       className={`record-hero ${photoUrl ? 'has-photo' : ''}`}
-      style={photoUrl ? { backgroundImage: `url("${photoUrl}")` } : undefined}
       aria-label="Record the moment. Press and hold for quick record."
       onPointerDown={start}
       onPointerUp={end}
@@ -214,9 +213,19 @@ function RecordButton({
       onContextMenu={(e) => e.preventDefault()}
       onClick={() => { if (!held.current) navigate('/record'); }}
     >
-      <span className="record-hero-scrim" aria-hidden="true" />
+      {photoUrl && (
+        <>
+          <span
+            className="record-hero-blur"
+            style={{ backgroundImage: `url("${photoUrl}")` }}
+            aria-hidden="true"
+          />
+          {/* Decorative: the button already says what it does. */}
+          <img className="record-hero-photo" src={photoUrl} alt="" />
+        </>
+      )}
       <span className="record-hero-label">
-        <Icon name="plus" size={22} />
+        <Icon name="plus" size={20} />
         <span>
           Record the moment
           <small>{childName ? `for ${childName} · hold for quick record` : 'Hold for quick record'}</small>
