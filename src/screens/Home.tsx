@@ -54,10 +54,7 @@ export function HomeScreen({ onQuickRecord }: { onQuickRecord: () => void }) {
         {store.preview && (
           <div className="banner banner--accent">
             <span className="banner-icon"><Icon name="info" size={20} /></span>
-            <div style={{ flex: 1 }}>
-              <strong>Preview.</strong> Invented sample data about a made-up child, kept on
-              this device only. Nothing here is real and nothing syncs.
-            </div>
+            <div style={{ flex: 1 }}><strong>Preview.</strong> Sample data, this device only.</div>
           </div>
         )}
 
@@ -72,7 +69,7 @@ export function HomeScreen({ onQuickRecord }: { onQuickRecord: () => void }) {
               <span>
                 <strong>A moment is still open</strong>
                 <span style={{ display: 'block', color: 'var(--ink-3)', fontSize: '0.8125rem' }}>
-                  Started at {formatTime(openDraft.start_time)} — finish it when you can.
+                  Started at {formatTime(openDraft.start_time)}
                 </span>
               </span>
               <Icon name="chevron" size={18} />
@@ -92,7 +89,7 @@ export function HomeScreen({ onQuickRecord }: { onQuickRecord: () => void }) {
 
         {perms.add && (
           <div className="row" style={{ justifyContent: 'center', gap: '0.25rem' }}>
-            <Button variant="plain" size="sm" icon="clock" onClick={() => navigate('/live')}>
+            <Button variant="plain" size="sm" onClick={() => navigate('/live')}>
               Start a timer instead
             </Button>
           </div>

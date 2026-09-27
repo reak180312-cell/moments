@@ -51,7 +51,7 @@ export function TriggerDetailScreen({ triggerId }: { triggerId: string }) {
   if (!trigger) {
     return (
       <div className="screen">
-        <header className="row-between" style={{ marginBottom: '1rem' }}>
+        <header className="screen-bar">
           <IconButton label="Back" name="back" onClick={back} />
           <span />
         </header>
@@ -69,10 +69,10 @@ export function TriggerDetailScreen({ triggerId }: { triggerId: string }) {
 
   return (
     <div className="screen">
-      <header className="row-between" style={{ marginBottom: '1rem' }}>
+      <header className="screen-bar">
         <IconButton label="Back" name="back" onClick={back} />
-        <h1 style={{ fontSize: '1.125rem' }}>Trigger</h1>
-        <span style={{ width: '44px' }} />
+        <h1>Trigger</h1>
+        <span />
       </header>
 
       <div className="stack-lg">

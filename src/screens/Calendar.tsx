@@ -42,10 +42,7 @@ export function CalendarScreen() {
   return (
     <div className="screen">
       <header className="screen-head">
-        <div>
-          <p className="eyebrow">Calendar</p>
-          <h1>{monthLabel}</h1>
-        </div>
+        <h1>{monthLabel}</h1>
         <div className="row" style={{ gap: '0.25rem' }}>
           <IconButton label="Previous month" name="back" onClick={() => setMonth(addMonths(month, -1))} />
           <IconButton label="Next month" name="chevron" onClick={() => setMonth(addMonths(month, 1))} />
@@ -99,10 +96,6 @@ export function CalendarScreen() {
             })}
           </div>
 
-          <p className="help" style={{ marginTop: '0.75rem' }}>
-            Each dot is one recorded moment; a deeper shade means a higher recorded
-            difficulty. The number below shows the count on busier days.
-          </p>
         </Card>
 
         <section className="stack" style={{ gap: '0.5rem' }}>

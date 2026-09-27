@@ -3,7 +3,7 @@ import { useStore } from '../data/store';
 import { RANGE_OPTIONS, formatDuration, resolveRange, type RangeKey } from '../lib/time';
 import { applyFilters, emptyFilters, filtersActive, forRange, summarise, type EventFilters } from '../lib/stats';
 import { LOCATIONS } from '../lib/types';
-import { Button, Card, Chip, EmptyState, Field, Fieldset, Icon, Sheet } from '../components/ui';
+import { Button, Chip, EmptyState, Field, Fieldset, Icon, Sheet } from '../components/ui';
 import { MomentList } from '../components/EventList';
 
 export function HistoryScreen() {
@@ -32,10 +32,7 @@ export function HistoryScreen() {
   return (
     <div className="screen">
       <header className="screen-head">
-        <div>
-          <p className="eyebrow">History</p>
-          <h1>{range.label}</h1>
-        </div>
+        <h1>{range.label}</h1>
       </header>
 
       <div className="stack-lg">
@@ -77,13 +74,11 @@ export function HistoryScreen() {
           </Button>
         </div>
 
-        <Card className="card--quiet">
-          <div className="row" style={{ justifyContent: 'space-between', gap: '1rem' }}>
-            <Stat label="Moments" value={String(stats.count)} />
-            <Stat label="Avg difficulty" value={stats.avgDifficulty === null ? '—' : `${stats.avgDifficulty}/10`} />
-            <Stat label="Total time" value={stats.totalSeconds ? formatDuration(stats.totalSeconds) : '—'} />
-          </div>
-        </Card>
+        <p className="result-line">
+          {stats.count} moment{stats.count === 1 ? '' : 's'}
+          {stats.avgDifficulty !== null && ` · average ${stats.avgDifficulty}/10`}
+          {stats.totalSeconds > 0 && ` · ${formatDuration(stats.totalSeconds)}`}
+        </p>
 
         {results.length === 0 ? (
           <EmptyState
@@ -112,15 +107,6 @@ export function HistoryScreen() {
           onClose={() => setShowFilters(false)}
         />
       )}
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="stack" style={{ gap: 0 }}>
-      <span className="tile-label">{label}</span>
-      <span style={{ fontWeight: 680, fontSize: '1.125rem' }}>{value}</span>
     </div>
   );
 }

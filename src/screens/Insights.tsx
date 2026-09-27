@@ -6,11 +6,11 @@ import {
   addMonths, type RangeKey,
 } from '../lib/time';
 import {
-  byDayOfWeek, byHour, byPartOfDay, byPeriod, compareSummaries, directionSymbol,
+  byDayOfWeek, byHour, byPartOfDay, byPeriod, compareSummaries,
   forRange, grainFor, helpfulSentence, helpfulStats, inRange, patterns, previousRangeEvents,
   summarise, triggerCounts,
 } from '../lib/stats';
-import { Button, Card, Chip, EmptyState, Icon } from '../components/ui';
+import { Button, Card, Chip, EmptyState } from '../components/ui';
 import { triggerClass } from '../lib/palette';
 import { ChartFrame, ColumnChart, ComparisonBars, DataTable, LineChart, RankedBars, TrendMark } from '../components/charts';
 
@@ -86,11 +86,8 @@ export function InsightsScreen() {
   return (
     <div className="screen screen--wide">
       <header className="screen-head">
-        <div>
-          <p className="eyebrow">Insights</p>
-          <h1>{range.label}</h1>
-        </div>
-        <Button icon="download" size="sm" onClick={() => navigate('/reports')}>Report</Button>
+        <h1>{range.label}</h1>
+        <Button size="sm" onClick={() => navigate('/reports')}>Report</Button>
       </header>
 
       <div className="stack-lg">
@@ -127,24 +124,16 @@ export function InsightsScreen() {
             {observations.length > 0 && (
               <Card>
                 <div className="stack">
-                  <div className="row" style={{ gap: '0.5rem' }}>
-                    <Icon name="info" size={18} />
-                    <h2 className="chart-title" style={{ margin: 0 }}>What the record shows</h2>
-                  </div>
+                  <h2 className="chart-title" style={{ margin: 0 }}>What the record shows</h2>
                   <ul style={{ margin: 0, paddingLeft: '1.125rem', color: 'var(--ink-2)', display: 'grid', gap: '0.5rem' }}>
                     {observations.map((line) => <li key={line}>{line}</li>)}
                   </ul>
-                  <p className="help">
-                    These are counts from what your family recorded. They describe the record,
-                    not the reason behind it.
-                  </p>
                 </div>
               </Card>
             )}
 
             <ChartFrame
               title="How often"
-              subtitle={`Moments recorded per ${grain}`}
               table={
                 <DataTable
                   columns={[grain === 'month' ? 'Month' : grain === 'week' ? 'Week of' : 'Day', 'Moments']}
@@ -161,14 +150,12 @@ export function InsightsScreen() {
 
             <ChartFrame
               title="Average difficulty"
-              subtitle="The average recorded score over time, out of 10"
               table={
                 <DataTable
                   columns={['Period', 'Average difficulty']}
                   rows={buckets.filter((b) => b.avgDifficulty !== null).map((b) => [bucketLabel(b.key), `${b.avgDifficulty}/10`])}
                 />
               }
-              footnote="Gaps are periods with nothing recorded."
             >
               <LineChart
                 data={buckets.map((b) => ({ label: bucketLabel(b.key), value: b.avgDifficulty }))}
@@ -181,17 +168,11 @@ export function InsightsScreen() {
 
             <ChartFrame
               title="How long"
-              subtitle="Total recorded time per period"
               table={
                 <DataTable
                   columns={['Period', 'Total time']}
                   rows={buckets.map((b) => [bucketLabel(b.key), formatDuration(b.totalSeconds)])}
                 />
-              }
-              footnote={
-                stats.timedCount < stats.count
-                  ? `${stats.timedCount} of ${stats.count} moments have a recorded duration.`
-                  : undefined
               }
             >
               <ColumnChart
@@ -204,7 +185,6 @@ export function InsightsScreen() {
 
             <ChartFrame
               title="Triggers"
-              subtitle="Most often recorded in this period"
               table={
                 <DataTable
                   columns={['Trigger', 'Times', 'Avg difficulty']}
@@ -227,7 +207,6 @@ export function InsightsScreen() {
 
             <ChartFrame
               title="Time of day"
-              subtitle="When moments were recorded"
               table={
                 <DataTable
                   columns={['Hour', 'Moments']}
@@ -259,7 +238,6 @@ export function InsightsScreen() {
 
             <ChartFrame
               title="Day of week"
-              subtitle="Monday to Sunday"
               table={
                 <DataTable
                   columns={['Day', 'Moments', 'Avg difficulty']}
@@ -293,10 +271,6 @@ export function InsightsScreen() {
                     ))}
                   </ul>
                 )}
-                <p className="help">
-                  These are patterns in what was written down. Moments differ, and the record
-                  cannot show why one was shorter than another.
-                </p>
               </div>
             </Card>
 
@@ -353,21 +327,12 @@ export function InsightsScreen() {
                   </tbody>
                 </table>
 
-                <p className="help">
-                  Arrows show direction only ({directionSymbol.up} higher, {directionSymbol.down} lower,
-                  {' '}{directionSymbol.flat} similar). A change in either direction is not
-                  good or bad on its own.
-                </p>
               </div>
             </Card>
 
-            <Card className="card--quiet">
-              <p style={{ fontSize: '0.8125rem', color: 'var(--ink-2)' }}>
-                Moments is a record-keeping app. It counts and describes what your family
-                wrote down. It does not assess, diagnose or explain — those conversations
-                belong with your child and the people who support them.
-              </p>
-            </Card>
+            <p className="help">
+              Counts of what your family wrote down. Not an assessment.
+            </p>
           </>
         )}
       </div>

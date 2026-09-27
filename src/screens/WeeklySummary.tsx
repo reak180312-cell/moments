@@ -27,10 +27,10 @@ export function WeeklySummaryScreen() {
 
   return (
     <div className="screen">
-      <header className="row-between" style={{ marginBottom: '1rem' }}>
+      <header className="screen-bar">
         <IconButton label="Back" name="back" onClick={back} />
-        <h1 style={{ fontSize: '1.125rem' }}>This week</h1>
-        <span style={{ width: '44px' }} />
+        <h1>This week</h1>
+        <span />
       </header>
 
       <div className="stack-lg">
@@ -119,14 +119,10 @@ export function WeeklySummaryScreen() {
           </>
         )}
 
-        <Button icon="download" block onClick={() => navigate('/reports')}>
+        <Button block onClick={() => navigate('/reports')}>
           Make a report from this
         </Button>
 
-        <p className="help" style={{ textAlign: 'center' }}>
-          This summary is only visible to your family. Nothing is shared unless you
-          choose to share it yourself.
-        </p>
       </div>
     </div>
   );

@@ -30,10 +30,6 @@ export function OnboardingScreen() {
       <div className="stack-lg">
         <header className="stack" style={{ gap: '0.375rem' }}>
           <h1>Set up your family</h1>
-          <p style={{ color: 'var(--ink-2)' }}>
-            Everything you record lives in one shared space. Only people you invite can
-            open it.
-          </p>
         </header>
 
         <Segmented
@@ -50,14 +46,14 @@ export function OnboardingScreen() {
           <form className="stack" onSubmit={submit}>
             {mode === 'create' ? (
               <>
-                <Field label="Family name" help="Just for the top of your screen.">
+                <Field label="Family name">
                   <input
                     className="input" value={familyName} required
                     onChange={(e) => setFamilyName(e.target.value)}
                     placeholder="The Coopers"
                   />
                 </Field>
-                <Field label="Child's name" help="You can add another child later.">
+                <Field label="Child's name">
                   <input
                     className="input" value={childName} required
                     onChange={(e) => setChildName(e.target.value)}
@@ -66,7 +62,7 @@ export function OnboardingScreen() {
                 </Field>
               </>
             ) : (
-              <Field label="Invite code" help="Ask whoever set up the family for the code.">
+              <Field label="Invite code">
                 <input
                   className="input" value={code} required
                   onChange={(e) => setCode(e.target.value.toUpperCase())}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useStore } from '../data/store';
 import { navigate } from '../lib/router';
 import { prefs } from '../lib/local';
@@ -9,14 +9,42 @@ import { download, downloadJson, eventsToCsv } from '../lib/export';
 import { fileToJpegBase64 } from '../lib/image';
 import type { FamilyMember, Role } from '../lib/types';
 import {
-  Avatar, Button, Card, Chip, ConfirmDialog, Field, Fieldset, Icon, Segmented,
+  Avatar, Button, Chip, ConfirmDialog, Field, Fieldset, Icon, Segmented,
   Sheet, SwitchRow, useToast,
 } from '../components/ui';
+
+/* A grouped list: the settings themselves do the talking, one line each. */
+
+function Group({ label, children }: { label?: string; children: ReactNode }) {
+  return (
+    <section>
+      {label && <p className="group-label">{label}</p>}
+      <div className="rows">{children}</div>
+    </section>
+  );
+}
+
+function RowButton({
+  label, value, onClick, danger,
+}: { label: string; value?: string; onClick: () => void; danger?: boolean }) {
+  return (
+    <button type="button" className="row-item" onClick={onClick}>
+      <span className="row-main" style={danger ? { color: 'var(--danger)' } : undefined}>{label}</span>
+      {value && <span className="row-value">{value}</span>}
+      <Icon name="chevron" size={16} className="row-chev" />
+    </button>
+  );
+}
+
+type Pane =
+  | null | 'name' | 'family' | 'people' | 'children' | 'photo'
+  | 'appearance' | 'notifications' | 'export';
 
 export function SettingsScreen() {
   const store = useStore();
   const toast = useToast();
 
+  const [pane, setPane] = useState<Pane>(null);
   const [name, setName] = useState(store.me?.display_name ?? '');
   const [familyName, setFamilyName] = useState(store.family?.name ?? '');
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
@@ -32,13 +60,15 @@ export function SettingsScreen() {
   const [notifyWeekly, setNotifyWeekly] = useState<boolean>(() => prefs.get('notifyWeekly', false));
 
   const isOwner = store.family?.owner_id === store.session?.user.id;
+  const triggerCount = store.triggers.filter((t) => !t.is_archived).length;
+  const helpfulCount = store.helpful.filter((t) => !t.is_archived).length;
 
   const exportEverything = async () => {
     setBusy(true);
     try {
       const data = await store.exportFamilyData();
       downloadJson(`moments-export-${new Date().toISOString().slice(0, 10)}.json`, data);
-      toast('Export saved to this device.');
+      toast('Saved to this device.');
     } catch (err) {
       toast((err as Error).message);
     } finally {
@@ -53,7 +83,7 @@ export function SettingsScreen() {
       person: (id) => store.nameOf(id),
     });
     download(`moments-${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv;charset=utf-8');
-    toast('CSV saved to this device.');
+    toast('Saved to this device.');
   };
 
   const deleteData = async () => {
@@ -74,240 +104,246 @@ export function SettingsScreen() {
     }
   };
 
+  const themeLabel = theme === 'system' ? 'System' : theme === 'light' ? 'Light' : 'Dark';
+  const syncLabel = !store.online
+    ? 'Offline'
+    : store.pendingCount > 0
+      ? `${store.pendingCount} waiting`
+      : store.lastSyncedAt ? relativeTime(store.lastSyncedAt) : 'Not synced yet';
+
   return (
     <div className="screen">
-      <header className="screen-head">
-        <div>
-          <p className="eyebrow">Settings</p>
-          <h1>{store.family?.name}</h1>
-        </div>
+      <header className="screen-bar">
+        <span />
+        <h1>Settings</h1>
+        <span />
       </header>
 
       <div className="stack-lg">
-        {/* --------------------------------------------------------- you */}
-        <Card>
-          <h2 className="section-title" style={{ marginTop: 0 }}>You</h2>
-          <div className="stack">
-            <Field label="Your name">
-              <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
-            </Field>
-            <div className="row">
-              <Button
-                disabled={name.trim() === store.me?.display_name || !name.trim()}
-                onClick={() => store.updateMyName(name).then(() => toast('Name updated.')).catch((e) => toast(e.message))}
-              >
-                Save name
-              </Button>
-              <span className="help">{store.me?.email}</span>
-            </div>
-          </div>
-        </Card>
+        <Group>
+          <RowButton label="Your name" value={store.me?.display_name} onClick={() => setPane('name')} />
+          {store.perms.manage && (
+            <RowButton label="Family name" value={store.family?.name} onClick={() => setPane('family')} />
+          )}
+          <RowButton
+            label="People"
+            value={`${store.members.length}`}
+            onClick={() => setPane('people')}
+          />
+          <RowButton
+            label={store.profiles.length > 1 ? 'Children' : 'Child'}
+            value={store.profiles.map((p) => p.name).join(', ')}
+            onClick={() => setPane('children')}
+          />
+          {store.backend === 'github' && (
+            <RowButton
+              label="Home photo"
+              value={store.photoUrl ? 'Set' : 'None'}
+              onClick={() => setPane('photo')}
+            />
+          )}
+          <RowButton label="Triggers" value={`${triggerCount}`} onClick={() => setManagingVocab('triggers')} />
+          <RowButton label="What helped" value={`${helpfulCount}`} onClick={() => setManagingVocab('helpful')} />
+        </Group>
 
-        {/* ------------------------------------------------------ profiles */}
-        <Card>
-          <h2 className="section-title" style={{ marginTop: 0 }}>Child profile</h2>
-          <div className="stack">
-            {store.profiles.map((p) => (
-              <div key={p.id} className="row-between">
-                <div className="row" style={{ gap: '0.625rem' }}>
-                  <Avatar name={p.name} hue={p.colour_hue} />
-                  <span>{p.name}</span>
-                </div>
-                <div className="row" style={{ gap: '0.375rem' }}>
-                  {store.profiles.length > 1 && (
-                    <Chip
-                      selected={store.activeProfileId === p.id}
-                      onClick={() => store.setActiveProfile(p.id)}
-                    >
-                      {store.activeProfileId === p.id ? 'Showing' : 'Show'}
-                    </Chip>
-                  )}
-                  {store.perms.manage && (
-                    <Button
-                      size="sm" variant="plain"
-                      onClick={() => {
-                        const next = window.prompt('Name', p.name);
-                        if (next) store.renameProfile(p.id, next).catch((e) => toast(e.message));
-                      }}
-                    >
-                      Rename
-                    </Button>
-                  )}
-                </div>
+        <Group>
+          <RowButton label="Appearance" value={themeLabel} onClick={() => setPane('appearance')} />
+          <RowButton
+            label="Notifications"
+            value={notifyOpen || notifyWeekly ? 'On' : 'Off'}
+            onClick={() => setPane('notifications')}
+          />
+          <RowButton label="Sync" value={syncLabel} onClick={() => void store.sync()} />
+        </Group>
+
+        <Group>
+          <RowButton label="Reports" onClick={() => navigate('/reports')} />
+          <RowButton label="Export my data" onClick={() => setPane('export')} />
+          {store.preview ? (
+            <RowButton label="Clear the sample data" danger onClick={() => void store.resetPreview()} />
+          ) : (
+            <RowButton label="Delete my data" danger onClick={() => setConfirmDelete(true)} />
+          )}
+        </Group>
+
+        <Button
+          variant="plain" block
+          onClick={() => store.signOut().catch((e) => toast((e as Error).message))}
+        >
+          Sign out
+        </Button>
+
+        <p className="help" style={{ textAlign: 'center' }}>
+          Moments keeps a record. It does not assess or diagnose anything.
+        </p>
+      </div>
+
+      {/* ------------------------------------------------------------ panes */}
+
+      {pane === 'name' && (
+        <Sheet
+          title="Your name" onClose={() => setPane(null)}
+          footer={
+            <Button
+              variant="primary" size="lg" block disabled={!name.trim()}
+              onClick={() => store.updateMyName(name)
+                .then(() => { toast('Saved.'); setPane(null); })
+                .catch((e) => toast(e.message))}
+            >
+              Save
+            </Button>
+          }
+        >
+          <input className="input" value={name} autoFocus onChange={(e) => setName(e.target.value)} />
+        </Sheet>
+      )}
+
+      {pane === 'family' && (
+        <Sheet
+          title="Family name" onClose={() => setPane(null)}
+          footer={
+            <Button
+              variant="primary" size="lg" block disabled={!familyName.trim()}
+              onClick={() => store.renameFamily(familyName)
+                .then(() => { toast('Saved.'); setPane(null); })
+                .catch((e) => toast(e.message))}
+            >
+              Save
+            </Button>
+          }
+        >
+          <input className="input" value={familyName} autoFocus onChange={(e) => setFamilyName(e.target.value)} />
+        </Sheet>
+      )}
+
+      {pane === 'people' && (
+        <Sheet
+          title="People" onClose={() => setPane(null)}
+          footer={store.perms.manage
+            ? <Button variant="primary" size="lg" block onClick={() => { setPane(null); setInviting(true); }}>
+                Invite someone
+              </Button>
+            : undefined}
+        >
+          <div className="rows">
+            {store.members.map((m) => (
+              <div key={m.id} className="row-item">
+                <Avatar name={store.nameOf(m.user_id)} />
+                <span className="row-main">
+                  {store.nameOf(m.user_id)}
+                  <span className="row-value" style={{ display: 'block' }}>
+                    {roleWord(m.role)} · {permissionSummary(m)}
+                  </span>
+                </span>
+                {store.perms.manage && m.role !== 'owner' && (
+                  <Button size="sm" variant="plain" onClick={() => { setPane(null); setEditingMember(m); }}>
+                    Change
+                  </Button>
+                )}
               </div>
             ))}
+          </div>
+        </Sheet>
+      )}
 
-            {store.perms.manage && (
-              <Button
-                size="sm" icon="plus"
-                style={{ justifySelf: 'start' }}
+      {pane === 'children' && (
+        <Sheet
+          title={store.profiles.length > 1 ? 'Children' : 'Child'} onClose={() => setPane(null)}
+          footer={store.perms.manage
+            ? <Button
+                variant="primary" size="lg" block
                 onClick={() => {
                   const child = window.prompt('Name of the child to add');
-                  if (child) store.addProfile(child).then(() => toast('Profile added.')).catch((e) => toast(e.message));
+                  if (child) store.addProfile(child).then(() => toast('Added.')).catch((e) => toast(e.message));
                 }}
               >
                 Add another child
               </Button>
-            )}
-            <p className="help">
-              Every moment is filed under a child, so adding another later keeps the two
-              records separate.
-            </p>
-          </div>
-        </Card>
-
-        {/* -------------------------------------------------------- family */}
-        <Card>
-          <h2 className="section-title" style={{ marginTop: 0 }}>Family</h2>
-          <div className="stack">
-            {store.perms.manage && (
-              <div className="stack">
-                <Field label="Family name">
-                  <input className="input" value={familyName} onChange={(e) => setFamilyName(e.target.value)} />
-                </Field>
-                <Button
-                  size="sm"
-                  style={{ justifySelf: 'start' }}
-                  disabled={familyName.trim() === store.family?.name || !familyName.trim()}
-                  onClick={() => store.renameFamily(familyName).then(() => toast('Saved.')).catch((e) => toast(e.message))}
-                >
-                  Save
-                </Button>
-              </div>
-            )}
-
-            <div className="list" style={{ marginTop: '0.5rem' }}>
-              {store.members.map((m) => (
-                <div key={m.id} className="list-row" style={{ cursor: 'default' }}>
-                  <Avatar name={store.nameOf(m.user_id)} />
-                  <span className="list-main">
-                    <span>{store.nameOf(m.user_id)}</span>
-                    <span className="list-sub">{roleWord(m.role)} · {permissionSummary(m)}</span>
-                  </span>
-                  {store.perms.manage && m.role !== 'owner' && (
-                    <Button size="sm" variant="plain" onClick={() => setEditingMember(m)}>Change</Button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {store.perms.manage && (
-              <Button icon="people" style={{ justifySelf: 'start' }} onClick={() => setInviting(true)}>
-                Invite someone
-              </Button>
-            )}
-          </div>
-        </Card>
-
-        {/* ------------------------------------------------------- photo */}
-        {store.backend === 'github' && (
-          <Card>
-            <h2 className="section-title" style={{ marginTop: 0 }}>Photo on the home screen</h2>
-            <div className="stack">
-              {store.photoUrl && (
-                <img
-                  src={store.photoUrl}
-                  alt="The picture behind the record button"
-                  style={{
-                    width: '100%', height: '7rem', objectFit: 'cover',
-                    objectPosition: 'center 28%', borderRadius: 'var(--radius-lg)',
-                  }}
-                />
-              )}
-
-              <div className="row" style={{ gap: '0.5rem' }}>
-                <label className="btn" style={{ cursor: 'pointer' }}>
-                  {store.photoUrl ? 'Change photo' : 'Choose a photo'}
-                  <input
-                    type="file" accept="image/*" className="sr-only"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      e.target.value = '';
-                      if (!file) return;
-                      setBusy(true);
-                      try {
-                        toast('Preparing the picture…');
-                        await store.setPhoto(await fileToJpegBase64(file));
-                        toast('Photo updated on every device.');
-                      } catch (err) {
-                        toast((err as Error).message);
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                  />
-                </label>
-
-                {store.photoUrl && (
-                  <Button
-                    variant="plain" disabled={busy}
-                    onClick={() => store.setPhoto(null).then(() => toast('Photo removed.')).catch((e) => toast(e.message))}
+            : undefined}
+        >
+          <div className="rows">
+            {store.profiles.map((p) => (
+              <div key={p.id} className="row-item">
+                <Avatar name={p.name} hue={p.colour_hue} />
+                <span className="row-main">{p.name}</span>
+                {store.profiles.length > 1 && (
+                  <Chip
+                    selected={store.activeProfileId === p.id}
+                    onClick={() => store.setActiveProfile(p.id)}
                   >
-                    Remove
+                    {store.activeProfileId === p.id ? 'Showing' : 'Show'}
+                  </Chip>
+                )}
+                {store.perms.manage && (
+                  <Button
+                    size="sm" variant="plain"
+                    onClick={() => {
+                      const next = window.prompt('Name', p.name);
+                      if (next) store.renameProfile(p.id, next).catch((e) => toast(e.message));
+                    }}
+                  >
+                    Rename
                   </Button>
                 )}
               </div>
-
-              <p className="help">
-                It is stored with your family record in the private repository, never in
-                the app's own public one, and it is scaled down before it is saved. Every
-                device you connect shows the same picture.
-              </p>
-            </div>
-          </Card>
-        )}
-
-        {/* --------------------------------------------------- vocabulary */}
-        <Card>
-          <h2 className="section-title" style={{ marginTop: 0 }}>Triggers and responses</h2>
-          <div className="list">
-            <button type="button" className="list-row" onClick={() => setManagingVocab('triggers')}>
-              <span className="list-main">
-                <span>Triggers</span>
-                <span className="list-sub">{store.triggers.filter((t) => !t.is_archived).length} in use</span>
-              </span>
-              <Icon name="chevron" size={18} className="chev" />
-            </button>
-            <button type="button" className="list-row" onClick={() => setManagingVocab('helpful')}>
-              <span className="list-main">
-                <span>What helped</span>
-                <span className="list-sub">{store.helpful.filter((t) => !t.is_archived).length} in use</span>
-              </span>
-              <Icon name="chevron" size={18} className="chev" />
-            </button>
+            ))}
           </div>
-        </Card>
+        </Sheet>
+      )}
 
-        {/* -------------------------------------------------------- sync */}
-        <Card>
-          <h2 className="section-title" style={{ marginTop: 0 }}>Sync</h2>
+      {pane === 'photo' && (
+        <Sheet title="Home photo" onClose={() => setPane(null)}>
           <div className="stack">
-            <p style={{ color: 'var(--ink-2)', fontSize: '0.875rem' }}>
-              {store.online ? 'Connected.' : 'Offline — changes are saved here and upload automatically.'}
-              {store.lastSyncedAt && ` Last synced ${relativeTime(store.lastSyncedAt)}.`}
-            </p>
-            {store.pendingCount > 0 && (
-              <p style={{ color: 'var(--ink-2)', fontSize: '0.875rem' }}>
-                {store.pendingCount} change{store.pendingCount === 1 ? '' : 's'} waiting to upload.
-              </p>
+            {store.photoUrl && (
+              <img
+                src={store.photoUrl} alt=""
+                style={{
+                  width: '100%', aspectRatio: '2.4 / 1', objectFit: 'contain',
+                  borderRadius: 'var(--radius-md)', background: 'var(--surface-2)',
+                }}
+              />
             )}
-            <Button
-              size="sm" style={{ justifySelf: 'start' }}
-              onClick={() => store.sync().then(() => toast('Up to date.'))}
-            >
-              Sync now
-            </Button>
+            <div className="row" style={{ gap: '0.5rem' }}>
+              <label className="btn btn--primary" style={{ cursor: 'pointer' }}>
+                {store.photoUrl ? 'Change' : 'Choose a photo'}
+                <input
+                  type="file" accept="image/*" className="sr-only"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!file) return;
+                    setBusy(true);
+                    try {
+                      await store.setPhoto(await fileToJpegBase64(file));
+                      toast('Updated on every device.');
+                    } catch (err) {
+                      toast((err as Error).message);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                />
+              </label>
+              {store.photoUrl && (
+                <Button
+                  variant="plain" disabled={busy}
+                  onClick={() => store.setPhoto(null).then(() => toast('Removed.')).catch((e) => toast(e.message))}
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
+            <p className="help">Kept in your private record, never in the app's public code.</p>
           </div>
-        </Card>
+        </Sheet>
+      )}
 
-        {/* --------------------------------------------------- appearance */}
-        <Card>
-          <h2 className="section-title" style={{ marginTop: 0 }}>Appearance</h2>
-          <div className="stack">
+      {pane === 'appearance' && (
+        <Sheet title="Appearance" onClose={() => setPane(null)}>
+          <div className="stack-lg">
             <Fieldset label="Theme">
               <Segmented
-                label="Theme"
-                value={theme}
+                label="Theme" value={theme}
                 onChange={(v) => { setThemeState(v); setTheme(v); }}
                 options={[
                   { value: 'system', label: 'System' },
@@ -317,10 +353,9 @@ export function SettingsScreen() {
               />
             </Fieldset>
 
-            <Fieldset label="Text size" help="Moments also follows your device's own text size setting.">
+            <Fieldset label="Text size">
               <Segmented
-                label="Text size"
-                value={textSize}
+                label="Text size" value={textSize}
                 onChange={(v) => { setTextSizeState(v); setTextSize(v); }}
                 options={[
                   { value: 'normal', label: 'Normal' },
@@ -332,106 +367,52 @@ export function SettingsScreen() {
 
             <SwitchRow
               title="Reduce motion"
-              description="Turns off the small animations."
               checked={motion}
               onChange={(v) => { setMotionState(v); setReduceMotion(v); }}
             />
           </div>
-        </Card>
+        </Sheet>
+      )}
 
-        {/* ------------------------------------------------ notifications */}
-        <Card>
-          <h2 className="section-title" style={{ marginTop: 0 }}>Notifications</h2>
-          <SwitchRow
-            title="Unfinished moments"
-            description="A nudge if a moment has been running for over 30 minutes."
-            checked={notifyOpen}
-            onChange={async (v) => {
-              setNotifyOpen(v);
-              prefs.set('notifyOpenMoment', v);
-              if (v && notificationPermission() === 'default') await requestNotifications();
-            }}
-          />
-          <SwitchRow
-            title="Weekly summary"
-            description="A note on Mondays that the week's summary is ready."
-            checked={notifyWeekly}
-            onChange={async (v) => {
-              setNotifyWeekly(v);
-              prefs.set('notifyWeekly', v);
-              if (v && notificationPermission() === 'default') await requestNotifications();
-            }}
-          />
-          <p className="help" style={{ marginTop: '0.75rem' }}>
-            Notifications never contain anything about a moment — no score, no trigger, no
-            note. They only say that something is waiting in the app. They come from this
-            device while Moments is open or in the background, so nothing is sent through
-            anyone else's service.
-          </p>
-        </Card>
-
-        {/* ------------------------------------------------ privacy & data */}
-        <Card>
-          <h2 className="section-title" style={{ marginTop: 0 }}>Your data</h2>
-          <div className="stack">
-            {store.preview && (
-              <p style={{ color: 'var(--ink-2)', fontSize: '0.875rem' }}>
-                <strong>This is a preview.</strong> The moments, the names and the child are
-                invented, and they live only in this browser. Clearing the sample data below
-                removes every trace of it.
-              </p>
-            )}
-            {store.backend === 'github' && (
-              <p style={{ color: 'var(--ink-2)', fontSize: '0.875rem' }}>
-                Your record is stored in a private repository on your own GitHub account
-                (<a href={store.repoUrl} target="_blank" rel="noreferrer">{store.repoUrl.replace('https://github.com/', '')}</a>),
-                reachable only by the people you invite to it. This device holds its own
-                key, kept here and sent nowhere but GitHub. Every change is a commit, so
-                the record also keeps its own history.
-              </p>
-            )}
-            <p style={{ color: 'var(--ink-2)', fontSize: '0.875rem' }}>
-              This information belongs to your family. It is stored in your own database,
-              reachable only by the people invited here, over an encrypted connection. There
-              are no adverts, no public profiles, no public links, and nothing is ever sold
-              or shared.
-            </p>
-
-            <div className="row" style={{ gap: '0.5rem' }}>
-              <Button icon="download" disabled={busy} onClick={() => void exportEverything()}>
-                Export my data
-              </Button>
-              <Button icon="download" onClick={exportCsv}>Export as CSV</Button>
-            </div>
-
-            <Button icon="download" style={{ justifySelf: 'start' }} onClick={() => navigate('/reports')}>
-              Make a report
-            </Button>
-
-            {store.preview ? (
-              <Button variant="danger" style={{ justifySelf: 'start' }} onClick={() => void store.resetPreview()}>
-                Clear the sample data
-              </Button>
-            ) : (
-              <Button variant="danger" style={{ justifySelf: 'start' }} onClick={() => setConfirmDelete(true)}>
-                Delete my data
-              </Button>
-            )}
+      {pane === 'notifications' && (
+        <Sheet title="Notifications" onClose={() => setPane(null)}>
+          <div className="rows">
+            <SwitchRow
+              title="Unfinished moments"
+              checked={notifyOpen}
+              onChange={async (v) => {
+                setNotifyOpen(v);
+                prefs.set('notifyOpenMoment', v);
+                if (v && notificationPermission() === 'default') await requestNotifications();
+              }}
+            />
+            <SwitchRow
+              title="Weekly summary"
+              checked={notifyWeekly}
+              onChange={async (v) => {
+                setNotifyWeekly(v);
+                prefs.set('notifyWeekly', v);
+                if (v && notificationPermission() === 'default') await requestNotifications();
+              }}
+            />
           </div>
-        </Card>
+          <p className="help" style={{ marginTop: '0.75rem' }}>
+            They never name a score, a trigger or a note.
+          </p>
+        </Sheet>
+      )}
 
-        <Button
-          variant="plain" block
-          onClick={() => store.signOut().catch((e) => toast((e as Error).message))}
-        >
-          Sign out
-        </Button>
-
-        <p className="help" style={{ textAlign: 'center' }}>
-          Moments keeps a record. It does not assess or diagnose anything, and it is not a
-          substitute for the people who know and support your child.
-        </p>
-      </div>
+      {pane === 'export' && (
+        <Sheet title="Export my data" onClose={() => setPane(null)}>
+          <div className="stack">
+            <Button variant="primary" size="lg" block disabled={busy} onClick={() => void exportEverything()}>
+              Everything, as JSON
+            </Button>
+            <Button size="lg" block onClick={exportCsv}>Moments, as CSV</Button>
+            <p className="help">Saved to this device. Moments never sends it anywhere.</p>
+          </div>
+        </Sheet>
+      )}
 
       {editingMember && (
         <MemberSheet member={editingMember} onClose={() => setEditingMember(null)} />
@@ -444,21 +425,13 @@ export function SettingsScreen() {
         <ConfirmDialog
           title={store.backend === 'github' ? 'Erase every record?' : isOwner ? 'Delete everything?' : 'Leave this family?'}
           body={
-            store.backend === 'github' ? (
-              <>
-                This removes every moment, note and setting from the repository, for
-                everyone, and disconnects this device. Export your data first if you might
-                want it.
-                <br /><br />
-                One thing to be clear about: the files go, but git keeps the earlier
-                commits. To remove every last trace, delete the repository itself in
-                GitHub's settings afterwards.
-              </>
-            ) : isOwner
-              ? 'You own this family space, so this deletes every moment, note and member for everyone. It cannot be undone. Export your data first if you might want it.'
-              : 'You will be removed from this family and this device will be cleared. The family keeps its own records.'
+            store.backend === 'github'
+              ? 'This removes every moment from the record, for everyone, and disconnects this device. Git keeps the earlier commits — delete the repository on GitHub to remove every trace.'
+              : isOwner
+                ? 'This deletes every moment, note and member, for everyone. It cannot be undone.'
+                : 'You will be removed from this family and this device cleared.'
           }
-          confirmLabel={store.backend === 'github' ? 'Erase everything' : isOwner ? 'Delete everything' : 'Leave family'}
+          confirmLabel={store.backend === 'github' ? 'Erase' : isOwner ? 'Delete' : 'Leave'}
           destructive
           onConfirm={() => void deleteData()}
           onCancel={() => setConfirmDelete(false)}
@@ -664,11 +637,7 @@ function InviteSheet({ onClose }: { onClose: () => void }) {
             <p style={{ color: 'var(--ink-2)' }}>
               Share this code with them privately. It works once and expires in 14 days.
             </p>
-            <Card className="card--quiet">
-              <p style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.12em', textAlign: 'center' }}>
-                {code}
-              </p>
-            </Card>
+            <p className="invite-code">{code}</p>
             <Button
               icon="copy" block
               onClick={() => {

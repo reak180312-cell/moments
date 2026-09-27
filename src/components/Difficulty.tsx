@@ -97,9 +97,7 @@ export function DifficultyScale({
       )}
 
       <p className="difficulty-readout" aria-live="polite">
-        {value === null
-          ? 'Choose the number that felt closest.'
-          : <><strong>{value}/10</strong> · {difficultyWord(value)}</>}
+        {value !== null && <><strong>{value}/10</strong> · {difficultyWord(value)}</>}
       </p>
     </div>
   );

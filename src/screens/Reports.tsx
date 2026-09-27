@@ -103,10 +103,10 @@ export function ReportsScreen() {
 
   return (
     <div className="screen screen--wide">
-      <header className="row-between no-print" style={{ marginBottom: '1rem' }}>
+      <header className="screen-bar no-print">
         <IconButton label="Back" name="back" onClick={back} />
-        <h1 style={{ fontSize: '1.125rem' }}>Report</h1>
-        <span style={{ width: '44px' }} />
+        <h1>Report</h1>
+        <span />
       </header>
 
       <div className="stack-lg">
@@ -154,17 +154,14 @@ export function ReportsScreen() {
         </Card>
 
         <div className="row no-print" style={{ gap: '0.5rem' }}>
-          <Button variant="primary" icon="download" style={{ flex: 1 }} onClick={() => window.print()}>
+          <Button variant="primary" style={{ flex: 1 }} onClick={() => window.print()}>
             Save as PDF
           </Button>
-          <Button icon="download" style={{ flex: 1 }} onClick={exportCsv}>
+          <Button style={{ flex: 1 }} onClick={exportCsv}>
             Download CSV
           </Button>
         </div>
 
-        <p className="help no-print" style={{ textAlign: 'center' }}>
-          The file is saved to this device. Moments never sends a report anywhere on its own.
-        </p>
 
         {/* ------------------------------ the report itself ------------------------------ */}
 
@@ -173,10 +170,6 @@ export function ReportsScreen() {
             <p className="eyebrow">{store.family?.name}{child ? ` · ${child.name}` : ''}</p>
             <h2 style={{ fontSize: '1.5rem', marginTop: '0.25rem' }}>Moments report</h2>
             <p style={{ color: 'var(--ink-2)' }}>{range.label}</p>
-            <p className="help" style={{ marginTop: '0.75rem' }}>
-              A record of what this family wrote down. It describes what was recorded and
-              does not assess or diagnose anything.
-            </p>
           </Card>
 
           {sections.summary && (

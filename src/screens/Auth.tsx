@@ -35,8 +35,7 @@ export function AuthScreen() {
         <header className="stack" style={{ gap: '0.375rem' }}>
           <h1 style={{ fontSize: '1.75rem' }}>Moments</h1>
           <p style={{ color: 'var(--ink-2)' }}>
-            A calm, private place for your family to note the hard moments — and to see
-            them clearly later.
+            A private place to note the hard moments, and see them clearly later.
           </p>
         </header>
 
@@ -101,10 +100,6 @@ export function AuthScreen() {
           </Card>
         )}
 
-        <p style={{ color: 'var(--ink-3)', fontSize: '0.8125rem', textAlign: 'center' }}>
-          Your family's information stays in your own database, reachable only by the
-          people you invite. No adverts, no public profiles, nothing shared by default.
-        </p>
       </div>
     </div>
   );

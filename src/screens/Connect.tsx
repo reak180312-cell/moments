@@ -86,8 +86,7 @@ export function ConnectScreen() {
         <header className="stack" style={{ gap: '0.375rem' }}>
           <h1 style={{ fontSize: '1.75rem' }}>Moments</h1>
           <p style={{ color: 'var(--ink-2)' }}>
-            One shared record for your family, on every device. Connect this device once
-            and it stays connected.
+            One shared record, on every device.
           </p>
         </header>
 
@@ -187,11 +186,6 @@ export function ConnectScreen() {
             </Button>
           </div>
         </Card>
-
-        <p style={{ color: 'var(--ink-3)', fontSize: '0.8125rem', textAlign: 'center' }}>
-          Nothing your family records is public, and nothing is shared unless you share it
-          yourself. No adverts, no tracking, nothing sold.
-        </p>
       </div>
     </div>
   );

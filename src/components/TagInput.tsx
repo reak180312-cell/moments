@@ -180,9 +180,6 @@ export function TagInput({
 
       {showList && (
         <ul className="suggestions" id={listId} role="listbox">
-          {!query.trim() && (
-            <li className="suggestions-hint" aria-hidden="true">Written before</li>
-          )}
           {suggestions.map((v, i) => (
             <li key={v.id}>
               <button
@@ -204,11 +201,6 @@ export function TagInput({
         </ul>
       )}
 
-      <p className="help">
-        {kind === 'triggers'
-          ? 'Write it however you like. If you have written it before, it will join up with those.'
-          : 'Write whatever seemed to help. Repeating a word joins it up with the last time.'}
-      </p>
 
       {error && <p role="alert" style={{ color: 'var(--danger)', fontSize: '0.8125rem' }}>{error}</p>}
     </div>

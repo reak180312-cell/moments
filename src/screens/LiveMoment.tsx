@@ -96,10 +96,10 @@ export function LiveMomentScreen({ draftId }: { draftId: string | null }) {
 
   return (
     <div className="screen" style={{ display: 'flex', flexDirection: 'column' }}>
-      <header className="row-between" style={{ marginBottom: '1.5rem' }}>
+      <header className="screen-bar">
         <IconButton label="Back" name="back" onClick={back} />
-        <h1 style={{ fontSize: '1.125rem' }}>Happening now</h1>
-        <span style={{ width: '44px' }} />
+        <h1>Happening now</h1>
+        <span />
       </header>
 
       <div className="stack-lg">

@@ -35,7 +35,9 @@ export function MomentRow({ event, showDay }: { event: MomentEvent; showDay?: bo
       <span className="tl-time" aria-hidden="true">
         {formatTime(event.start_time)}
         <small>
-          {showDay ? formatDayLabel(event.start_time) : formatDuration(event.duration_seconds)}
+          {showDay
+            ? formatDayLabel(event.start_time)
+            : event.duration_seconds ? formatDuration(event.duration_seconds) : ''}
         </small>
       </span>
 

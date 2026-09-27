@@ -5,15 +5,20 @@ import {
   formatDateTime, formatDuration, formatLongDate, formatTime, relativeTime,
 } from '../lib/time';
 import type { EditHistoryEntry } from '../lib/types';
-import { Button, Card, ConfirmDialog, EmptyState, Icon, IconButton, useToast } from '../components/ui';
-import { DifficultyBadge, difficultyWord } from '../components/Difficulty';
+import { Button, ConfirmDialog, EmptyState, Icon, IconButton, useToast } from '../components/ui';
+import { DifficultyBadge, dClass, difficultyWord } from '../components/Difficulty';
 
+/**
+ * One moment. Only what was actually recorded is shown - a column of "Not
+ * recorded" rows told the reader nothing except that the form is long.
+ */
 export function EventDetailScreen({ eventId }: { eventId: string }) {
   const store = useStore();
   const back = useBack();
   const toast = useToast();
   const event = store.events[eventId];
   const [history, setHistory] = useState<EditHistoryEntry[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { getHistory } = store;
@@ -26,13 +31,14 @@ export function EventDetailScreen({ eventId }: { eventId: string }) {
   if (!event) {
     return (
       <div className="screen">
-        <header className="row-between" style={{ marginBottom: '1rem' }}>
+        <header className="screen-bar">
           <IconButton label="Back" name="back" onClick={back} />
+          <h1>Moment</h1>
           <span />
         </header>
         <EmptyState
           emoji="·"
-          title="This moment is not on this device"
+          title="Not on this device"
           body="It may have been deleted, or it may not have synced here yet."
           action={<Button onClick={() => navigate('/history')}>Back to history</Button>}
         />
@@ -43,6 +49,14 @@ export function EventDetailScreen({ eventId }: { eventId: string }) {
   const triggers = event.trigger_ids.map(store.triggerName);
   const helped = event.helpful_ids.map(store.helpfulName);
   const deleted = Boolean(event.deleted_at);
+  const edited = event.updated_at !== event.created_at;
+
+  const context = [
+    event.sleep_quality && ['Sleep', capitalise(event.sleep_quality)],
+    event.hungry && ['Hungry', event.hungry === 'unknown' ? 'Not sure' : capitalise(event.hungry)],
+    event.school_day !== null && ['School day', event.school_day ? 'Yes' : 'No'],
+    event.unusual_day !== null && ['Unusual day', event.unusual_day ? 'Yes' : 'No'],
+  ].filter(Boolean) as [string, string][];
 
   const remove = async () => {
     try {
@@ -61,153 +75,121 @@ export function EventDetailScreen({ eventId }: { eventId: string }) {
 
   return (
     <div className="screen">
-      <header className="row-between" style={{ marginBottom: '1rem' }}>
+      <header className="screen-bar">
         <IconButton label="Back" name="back" onClick={back} />
-        <h1 style={{ fontSize: '1.125rem' }}>Moment</h1>
-        <span style={{ width: '44px' }} />
+        <h1>Moment</h1>
+        <span />
       </header>
 
-      <div className="stack-lg">
+      <div className="detail">
         {deleted && (
           <div className="banner">
-            <span className="banner-icon"><Icon name="info" size={20} /></span>
-            <div style={{ flex: 1 }}>
-              <strong>This moment is deleted.</strong> Its history is kept.
-            </div>
+            <div style={{ flex: 1 }}><strong>Deleted.</strong> Its history is kept.</div>
             {store.perms.edit && (
               <Button size="sm" onClick={() => void store.restoreEvent(eventId)}>Restore</Button>
             )}
           </div>
         )}
 
-        {event._pending && (
-          <div className="banner">
-            <span className="pending-dot" />
-            <div style={{ flex: 1 }}>Saved on this device — waiting to sync to the others.</div>
-          </div>
-        )}
-
         {event._error && (
           <div className="banner">
-            <span className="banner-icon"><Icon name="info" size={20} /></span>
             <div style={{ flex: 1 }}>
-              <strong>This change was not saved.</strong>
-              <div style={{ fontSize: '0.8125rem' }}>{event._error}</div>
+              <strong>Not saved.</strong> {event._error}
             </div>
-            <Button size="sm" onClick={() => void store.retryOutbox(eventId)}>Try again</Button>
+            <Button size="sm" onClick={() => void store.retryOutbox(eventId)}>Retry</Button>
           </div>
         )}
 
-        <Card className="card--pad-lg">
-          <div className="stack">
-            <div className="row-between">
-              <div>
-                <p className="eyebrow">{formatLongDate(event.start_time)}</p>
-                <h2 style={{ fontSize: '1.5rem' }}>{formatTime(event.start_time)}</h2>
-              </div>
-              <DifficultyBadge value={event.difficulty} />
-            </div>
+        {event._pending && !event._error && (
+          <div className="banner"><span className="pending-dot" />Waiting to sync</div>
+        )}
 
-            <p style={{ color: 'var(--ink-2)' }}>
-              {event.difficulty !== null && <>Difficulty {event.difficulty}/10 · {difficultyWord(event.difficulty)}</>}
+        <div className="detail-head">
+          <span className={`detail-score ${dClass(event.difficulty)}`} aria-hidden="true">
+            {event.difficulty ?? '–'}
+          </span>
+          <div>
+            <h2>{event.difficulty ? difficultyWord(event.difficulty) : 'Difficulty not recorded'}</h2>
+            <p>
+              {formatLongDate(event.start_time)} · {formatTime(event.start_time)}
               {event.duration_seconds ? ` · ${formatDuration(event.duration_seconds)}` : ''}
             </p>
+            <span className="sr-only"><DifficultyBadge value={event.difficulty} /></span>
           </div>
-        </Card>
+        </div>
 
-        <Card>
-          <dl className="stack" style={{ margin: 0, gap: '0.875rem' }}>
-            <Row label="Start time" value={formatTime(event.start_time)} />
-            <Row label="End time" value={event.end_time ? formatTime(event.end_time) : 'Not recorded'} />
-            <Row label="Duration" value={formatDuration(event.duration_seconds)} />
-            <Row
-              label="Difficulty"
-              value={event.difficulty === null ? 'Not recorded' : `${event.difficulty}/10 · ${difficultyWord(event.difficulty)}`}
-            />
-            <Row label="Triggers" value={triggers.length ? triggers.join(', ') : 'None recorded'} />
-            <Row label="Where" value={event.location ?? 'Not recorded'} />
-            <Row label="What happened" value={event.description ?? 'Not recorded'} block />
-            <Row label="What helped" value={helped.length ? helped.join(', ') : 'Not recorded'} />
-            <Row label="Notes" value={event.notes ?? 'None'} block />
-          </dl>
-        </Card>
+        {event.description && <p className="detail-quote" dir="auto">{event.description}</p>}
 
-        {(event.sleep_quality || event.hungry || event.school_day !== null || event.unusual_day !== null) && (
-          <Card>
-            <h3 className="section-title" style={{ marginTop: 0 }}>About the day</h3>
-            <dl className="stack" style={{ margin: 0, gap: '0.875rem' }}>
-              {event.sleep_quality && <Row label="Sleep" value={capitalise(event.sleep_quality)} />}
-              {event.hungry && <Row label="Hungry" value={event.hungry === 'unknown' ? 'Not sure' : capitalise(event.hungry)} />}
-              {event.school_day !== null && <Row label="School day" value={event.school_day ? 'Yes' : 'No'} />}
-              {event.unusual_day !== null && <Row label="Unusual day" value={event.unusual_day ? 'Yes' : 'No'} />}
-            </dl>
-          </Card>
-        )}
-
-        <Card className="card--quiet">
-          <dl className="stack" style={{ margin: 0, gap: '0.75rem' }}>
-            <Row label="Recorded by" value={store.nameOf(event.created_by)} />
-            <Row label="Created" value={formatDateTime(event.created_at)} />
+        <dl className="detail-list">
+          {triggers.length > 0 && <Row label="Triggers" value={triggers.join(', ')} />}
+          {helped.length > 0 && <Row label="What helped" value={helped.join(', ')} />}
+          {event.location && <Row label="Where" value={event.location} />}
+          {event.notes && <Row label="Notes" value={event.notes} block />}
+          {context.map(([label, value]) => <Row key={label} label={label} value={value} />)}
+          <Row label="Recorded by" value={`${store.nameOf(event.created_by)} · ${formatDateTime(event.created_at)}`} />
+          {edited && (
             <Row
               label="Last edited"
-              value={
-                event.updated_at === event.created_at
-                  ? 'Not edited'
-                  : `${formatDateTime(event.updated_at)} by ${store.nameOf(event.updated_by)}`
-              }
+              value={`${store.nameOf(event.updated_by)} · ${relativeTime(event.updated_at)}`}
             />
-          </dl>
-        </Card>
+          )}
+        </dl>
 
         {!deleted && (
-          <div className="row" style={{ gap: '0.5rem' }}>
+          <div className="detail-actions">
             {store.perms.edit && (
-              <Button icon="edit" style={{ flex: 1 }} onClick={() => navigate(`/record?id=${event.id}`)}>
+              <Button variant="primary" block onClick={() => navigate(`/record?id=${event.id}`)}>
                 Edit
               </Button>
             )}
             {store.perms.add && (
-              <Button icon="copy" style={{ flex: 1 }} onClick={() => navigate(`/record?duplicate=${event.id}`)}>
+              <Button variant="plain" onClick={() => navigate(`/record?duplicate=${event.id}`)}>
                 Duplicate
               </Button>
             )}
             {store.perms.delete && (
-              <Button icon="trash" variant="danger" style={{ flex: 1 }} onClick={() => setConfirmDelete(true)}>
+              <Button variant="plain" className="btn--danger" onClick={() => setConfirmDelete(true)}>
                 Delete
               </Button>
             )}
           </div>
         )}
 
-        <Card>
-          <h3 className="section-title" style={{ marginTop: 0 }}>Edit history</h3>
-          {history.length === 0 ? (
-            <p className="help">No history recorded on this device yet.</p>
-          ) : (
-            <div className="stack" style={{ gap: '1.25rem' }}>
-              {history.map((entry) => (
-                <div key={entry.id} className="history-entry">
-                  <span className="dot" aria-hidden="true" />
-                  <div>
-                    <div style={{ fontSize: '0.875rem' }}>{describeHistory(entry, store.nameOf)}</div>
-                    <div className="when">
-                      {formatDateTime(entry.changed_at)} · {relativeTime(entry.changed_at)}
+        <div className="detail-history">
+          <button
+            type="button"
+            className="disclose"
+            aria-expanded={showHistory}
+            onClick={() => setShowHistory((v) => !v)}
+          >
+            <span>Edit history</span>
+            <Icon name="chevron" size={16} />
+          </button>
+
+          {showHistory && (
+            history.length === 0
+              ? <p className="help">Nothing recorded on this device yet.</p>
+              : (
+                <div className="stack" style={{ gap: '1rem', marginTop: '0.75rem' }}>
+                  {history.map((entry) => (
+                    <div key={entry.id} className="history-entry">
+                      <span className="dot" aria-hidden="true" />
+                      <div>
+                        <div style={{ fontSize: '0.875rem' }}>{describeHistory(entry, store.nameOf)}</div>
+                        <div className="when">{formatDateTime(entry.changed_at)}</div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )
           )}
-          <p className="help" style={{ marginTop: '0.75rem' }}>
-            Edits never overwrite this list — it is kept so you can always see what changed.
-          </p>
-        </Card>
+        </div>
       </div>
 
       {confirmDelete && (
         <ConfirmDialog
           title="Delete this moment?"
-          body="It will be removed from every device. Its edit history is kept, and you can undo this straight away."
+          body="It will go from every device. You can undo this straight away."
           confirmLabel="Delete"
           destructive
           onConfirm={() => void remove()}
@@ -220,17 +202,9 @@ export function EventDetailScreen({ eventId }: { eventId: string }) {
 
 function Row({ label, value, block }: { label: string; value: string; block?: boolean }) {
   return (
-    <div style={block ? undefined : { display: 'flex', justifyContent: 'space-between', gap: '1.5rem' }}>
-      <dt style={{ color: 'var(--ink-3)', fontSize: '0.875rem', flex: 'none' }}>{label}</dt>
-      <dd
-        style={{
-          margin: 0, textAlign: block ? 'left' : 'right',
-          color: value.startsWith('Not recorded') || value === 'None' ? 'var(--ink-3)' : 'var(--ink)',
-          whiteSpace: 'pre-wrap',
-        }}
-      >
-        {value}
-      </dd>
+    <div className={block ? 'detail-row detail-row--block' : 'detail-row'}>
+      <dt>{label}</dt>
+      <dd dir="auto">{value}</dd>
     </div>
   );
 }
@@ -265,7 +239,7 @@ function describeHistory(entry: EditHistoryEntry, nameOf: (id: string | null) =>
   const parts = entry.changes.map((c) => {
     const field = FIELD_WORDS[c.field] ?? c.field;
     if (c.field === 'difficulty' && c.from != null && c.to != null) {
-      return `${field} changed from ${c.from} to ${c.to}`;
+      return `${field} ${c.from} → ${c.to}`;
     }
     if (c.to === 'changed') return `${field} changed`;
     if (c.from == null && c.to != null) return `${field} added`;

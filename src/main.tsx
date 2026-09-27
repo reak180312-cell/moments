@@ -6,6 +6,7 @@ import { ToastProvider } from './components/ui';
 import { applyAppearance } from './lib/theme';
 import './styles/app.css';
 import './styles/colour.css';
+import './styles/refine.css';
 
 applyAppearance();
 
