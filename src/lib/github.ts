@@ -550,3 +550,48 @@ export async function eraseAll(cfg: GhConfig): Promise<void> {
 }
 
 export type { FamilyFile, VocabFile };
+
+/* ------------------------------------------------------------- the photo */
+
+const PHOTO_PATH = 'photo.jpg';
+
+/**
+ * The picture on the home screen.
+ *
+ * It lives in the private repository with everything else, never in the app's
+ * own public one, and it is fetched with the family's own token. A photo of a
+ * child does not belong on a public web host.
+ */
+export async function readPhoto(cfg: GhConfig): Promise<string | null> {
+  const res = await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${PHOTO_PATH}?ref=${BRANCH}`);
+  if (res.status === 404) return null;
+  if (!res.ok) return null;
+  const body = await res.json() as { content?: string; sha?: string };
+  if (!body.content) return null;
+  return `data:image/jpeg;base64,${body.content.replace(/\s/g, '')}`;
+}
+
+export async function savePhoto(cfg: GhConfig, base64: string): Promise<void> {
+  const current = await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${PHOTO_PATH}?ref=${BRANCH}`);
+  const sha = current.ok ? ((await current.json()) as { sha: string }).sha : undefined;
+  const res = await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${PHOTO_PATH}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      message: 'Update the home screen photo',
+      content: base64,
+      branch: BRANCH,
+      ...(sha ? { sha } : {}),
+    }),
+  });
+  if (!res.ok) throw new GhError(`Could not save the photo (${res.status}).`, res.status);
+}
+
+export async function removePhoto(cfg: GhConfig): Promise<void> {
+  const current = await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${PHOTO_PATH}?ref=${BRANCH}`);
+  if (!current.ok) return;
+  const { sha } = await current.json() as { sha: string };
+  await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${PHOTO_PATH}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ message: 'Remove the home screen photo', sha, branch: BRANCH }),
+  });
+}

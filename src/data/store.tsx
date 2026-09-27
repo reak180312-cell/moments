@@ -91,13 +91,14 @@ interface State {
   lastSyncedAt: string | null;
   loadingRemote: boolean;
   error: string | null;
+  photoUrl: string | null;
 }
 
 const initialState: State = {
   ready: false, session: null, me: null, family: null, members: [], people: {},
   profiles: [], activeProfileId: null, triggers: [], helpful: [], events: {},
   outbox: [], vocabOutbox: [], conflicts: [], online: navigator.onLine,
-  syncing: false, lastSyncedAt: null, loadingRemote: false, error: null,
+  syncing: false, lastSyncedAt: null, loadingRemote: false, error: null, photoUrl: null,
 };
 
 interface Store extends State {
@@ -136,6 +137,7 @@ interface Store extends State {
   backend: BackendMode;
   repoUrl: string;
   connectGithub: (token: string, familyName: string, childName: string) => Promise<void>;
+  setPhoto: (base64: string | null) => Promise<void>;
   inviteGithubUser: (username: string, role: Role) => Promise<void>;
   preview: boolean;
   resetPreview: () => Promise<void>;
@@ -209,6 +211,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
 
       if (PREVIEW) {
+        const previewPhoto = await local.kvGet<string>('photo');
         let sample = events;
         if (!sample.length) {
           sample = buildDemoEvents();
@@ -228,6 +231,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           events: Object.fromEntries(sample.map((e) => [e.id, e])),
           outbox: [],
           vocabOutbox: [],
+          photoUrl: previewPhoto,
         });
         return;
       }
@@ -242,12 +246,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // The stored identity is this device's sign-in: no round trip needed to
         // open the app, so a cached record is on screen immediately.
         const identity = ghIdentity();
+        const photoUrl = await local.kvGet<string>('photo');
         patch({
           ...(cached ?? {}),
           events: map,
           outbox,
           vocabOutbox,
           ready: true,
+          photoUrl,
           session: identity && ghConfig() ? fakeSession(identity.id) : null,
         });
         return;
@@ -338,6 +344,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       try {
         const snap = await gh.pullAll(cfg);
         void local.putMany('events', snap.events);
+        gh.readPhoto(cfg).then((photo) => {
+          void local.kvSet('photo', photo);
+          patch({ photoUrl: photo });
+        }).catch(() => { /* the photo is decoration; never block on it */ });
 
         const events: Record<string, MomentEvent> = {};
         snap.events.forEach((e) => { events[e.id] = e; });
@@ -999,6 +1009,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await local.wipe();
   }, []);
 
+  /** The picture on the home screen. Stored with the family record, so every
+   *  device shows the same one - and never in the app's public repository. */
+  const setPhoto = useCallback(async (base64: string | null) => {
+    const cfg = ghConfig();
+    if (!cfg) throw new Error('Not connected to the family record.');
+    if (!navigator.onLine) throw new Error('This needs a connection.');
+    if (base64) {
+      await gh.savePhoto(cfg, base64);
+      const url = `data:image/jpeg;base64,${base64}`;
+      await local.kvSet('photo', url);
+      patch({ photoUrl: url });
+    } else {
+      await gh.removePhoto(cfg);
+      await local.kvSet('photo', null);
+      patch({ photoUrl: null });
+    }
+  }, [patch]);
+
   /** Connect this device to the family's private repository. */
   const connectGithub = useCallback(async (token: string, familyName: string, childName: string) => {
     const cfg = { owner: GH_OWNER, repo: GH_REPO, token: token.trim() };
@@ -1317,7 +1345,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     renameProfile, addProfile, setActiveProfile,
     backend: backendMode,
     repoUrl: ghRepoUrl,
-    connectGithub, inviteGithubUser,
+    connectGithub, inviteGithubUser, setPhoto,
     preview: PREVIEW, resetPreview,
     resolveConflict, dismissConflict, retryOutbox, discardOutbox,
     sync: async () => { await pull(); await flush(); },

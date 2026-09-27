@@ -6,6 +6,7 @@ import { relativeTime } from '../lib/time';
 import { setReduceMotion, setTextSize, setTheme, type TextSize, type ThemeChoice } from '../lib/theme';
 import { notificationPermission, requestNotifications } from '../lib/reminders';
 import { download, downloadJson, eventsToCsv } from '../lib/export';
+import { fileToJpegBase64 } from '../lib/image';
 import type { FamilyMember, Role } from '../lib/types';
 import {
   Avatar, Button, Card, Chip, ConfirmDialog, Field, Fieldset, Icon, Segmented,
@@ -197,6 +198,64 @@ export function SettingsScreen() {
             )}
           </div>
         </Card>
+
+        {/* ------------------------------------------------------- photo */}
+        {store.backend === 'github' && (
+          <Card>
+            <h2 className="section-title" style={{ marginTop: 0 }}>Photo on the home screen</h2>
+            <div className="stack">
+              {store.photoUrl && (
+                <img
+                  src={store.photoUrl}
+                  alt="The picture behind the record button"
+                  style={{
+                    width: '100%', height: '7rem', objectFit: 'cover',
+                    objectPosition: 'center 28%', borderRadius: 'var(--radius-lg)',
+                  }}
+                />
+              )}
+
+              <div className="row" style={{ gap: '0.5rem' }}>
+                <label className="btn" style={{ cursor: 'pointer' }}>
+                  {store.photoUrl ? 'Change photo' : 'Choose a photo'}
+                  <input
+                    type="file" accept="image/*" className="sr-only"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!file) return;
+                      setBusy(true);
+                      try {
+                        toast('Preparing the picture…');
+                        await store.setPhoto(await fileToJpegBase64(file));
+                        toast('Photo updated on every device.');
+                      } catch (err) {
+                        toast((err as Error).message);
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  />
+                </label>
+
+                {store.photoUrl && (
+                  <Button
+                    variant="plain" disabled={busy}
+                    onClick={() => store.setPhoto(null).then(() => toast('Photo removed.')).catch((e) => toast(e.message))}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
+
+              <p className="help">
+                It is stored with your family record in the private repository, never in
+                the app's own public one, and it is scaled down before it is saved. Every
+                device you connect shows the same picture.
+              </p>
+            </div>
+          </Card>
+        )}
 
         {/* --------------------------------------------------- vocabulary */}
         <Card>

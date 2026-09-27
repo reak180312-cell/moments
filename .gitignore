@@ -5,3 +5,10 @@ dist
 *.local
 .DS_Store
 dist-preview
+
+# Family photos never go in this repository - it is public.
+# The home-screen photo lives in the private moments-data repo instead.
+*.jpg
+*.jpeg
+*.png
+!public/icon*.png

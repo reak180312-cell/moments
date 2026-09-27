@@ -1,16 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../data/store';
 import { navigate } from '../lib/router';
-import { formatDuration, formatTime, startOfDay, endOfDay, formatLongDate } from '../lib/time';
-import { inRange, summarise, weeklySummary } from '../lib/stats';
+import {
+  addDays, formatDuration, formatTime, startOfDay, endOfDay, startOfMonth, startOfWeek,
+} from '../lib/time';
+import { inRange, summarise } from '../lib/stats';
 import { Button, Card, EmptyState, Icon } from '../components/ui';
-import { MomentList, SyncStatus } from '../components/EventList';
+import { SyncStatus } from '../components/EventList';
+import { dClass, difficultyWord } from '../components/Difficulty';
 import { triggerClass } from '../lib/palette';
+import type { MomentEvent } from '../lib/types';
+
+type Period = 'day' | 'week' | 'month';
+
+const PERIODS: { key: Period; label: string }[] = [
+  { key: 'day', label: 'Day' },
+  { key: 'week', label: 'Week' },
+  { key: 'month', label: 'Month' },
+];
 
 export function HomeScreen({ onQuickRecord }: { onQuickRecord: () => void }) {
   const store = useStore();
-  const { allEvents, triggers, profiles, activeProfileId, perms } = store;
+  const { allEvents, triggers, profiles, activeProfileId, perms, photoUrl } = store;
   const [now, setNow] = useState(() => new Date());
+  const [period, setPeriod] = useState<Period>('day');
 
   // Keep "today" honest if the app is left open past midnight.
   useEffect(() => {
@@ -19,55 +32,35 @@ export function HomeScreen({ onQuickRecord }: { onQuickRecord: () => void }) {
   }, []);
 
   const child = profiles.find((p) => p.id === activeProfileId);
+
   const scoped = useMemo(
     () => (activeProfileId ? allEvents.filter((e) => e.profile_id === activeProfileId) : allEvents),
     [allEvents, activeProfileId]
   );
 
-  const today = useMemo(
-    () => inRange(scoped, startOfDay(now), endOfDay(now)),
-    [scoped, now]
-  );
-  const stats = useMemo(() => summarise(today, triggers), [today, triggers]);
-  const week = useMemo(() => weeklySummary(scoped, triggers, now), [scoped, triggers, now]);
+  const window = useMemo(() => {
+    if (period === 'day') return { from: startOfDay(now), to: endOfDay(now) };
+    if (period === 'week') return { from: startOfWeek(now), to: addDays(startOfWeek(now), 7) };
+    return { from: startOfMonth(now), to: addDays(endOfDay(now), 1) };
+  }, [period, now]);
 
+  const events = useMemo(() => inRange(scoped, window.from, window.to), [scoped, window]);
+  const stats = useMemo(() => summarise(events, triggers), [events, triggers]);
   const openDraft = scoped.find((e) => e.status === 'draft');
 
   return (
     <div className="screen">
-      <header className="hero rise-in">
-        <p className="hero-eyebrow">{formatLongDate(now)}</p>
-        <h1>How has today been?</h1>
-        <p className="hero-sub">
-          {stats.count === 0
-            ? 'Nothing recorded yet today.'
-            : `${stats.count} moment${stats.count === 1 ? '' : 's'} so far${
-              stats.avgDifficulty !== null ? `, averaging ${stats.avgDifficulty} out of 10` : ''}.`}
-        </p>
-        <div className="hero-pills">
-          {child && <span className="hero-pill">{child.name}</span>}
-          {stats.topTrigger && (
-            <span className="hero-pill">
-              {stats.topTrigger.name} × {stats.topTrigger.count}
-            </span>
-          )}
-          {stats.totalSeconds > 0 && (
-            <span className="hero-pill">{formatDuration(stats.totalSeconds)} in total</span>
-          )}
-        </div>
-      </header>
-
       <div className="stack-lg">
         {store.preview && (
           <div className="banner banner--accent">
             <span className="banner-icon"><Icon name="info" size={20} /></span>
             <div style={{ flex: 1 }}>
-              <strong>Preview.</strong> Everything here is invented sample data about a
-              made-up child, kept on this device only. Try anything you like — nothing
-              syncs and nothing is real.
+              <strong>Preview.</strong> Invented sample data about a made-up child, kept on
+              this device only. Nothing here is real and nothing syncs.
             </div>
           </div>
         )}
+
         <SyncStatus />
 
         {openDraft && (
@@ -87,50 +80,8 @@ export function HomeScreen({ onQuickRecord }: { onQuickRecord: () => void }) {
           </button>
         )}
 
-        <section aria-label="Today at a glance">
-          <div className="tile-grid">
-            <Tile
-              tone="c-1" icon="bolt" delay={40}
-              label="Difficult moments"
-              value={String(stats.count)}
-              sub={stats.count === 0 ? 'Nothing recorded yet' : 'recorded today'}
-            />
-            <Tile
-              tone="c-7" icon="insights" delay={90}
-              label="Average difficulty"
-              value={stats.avgDifficulty === null ? '—' : String(stats.avgDifficulty)}
-              unit={stats.avgDifficulty === null ? undefined : '/10'}
-              sub={stats.count > 0 ? `across ${stats.count} moment${stats.count === 1 ? '' : 's'}` : '—'}
-            />
-            <Tile
-              tone="c-3" icon="clock" delay={140}
-              label="Total time"
-              value={stats.totalSeconds ? formatDuration(stats.totalSeconds) : '—'}
-              sub={stats.timedCount ? `${stats.timedCount} timed` : 'no durations yet'}
-            />
-            <Tile
-              tone={stats.topTrigger ? triggerClass(stats.topTrigger.name) : 'c-0'}
-              icon="pin" delay={190}
-              label="Most common trigger"
-              value={stats.topTrigger?.name ?? '—'}
-              small
-              sub={stats.topTrigger ? `${stats.topTrigger.count}× today` : 'none recorded'}
-            />
-          </div>
-        </section>
-
         {perms.add ? (
-          <div className="stack">
-            <RecordButton onQuick={onQuickRecord} />
-            <div className="row" style={{ gap: '0.5rem' }}>
-              <Button icon="clock" onClick={() => navigate('/live')} style={{ flex: 1 }}>
-                Start Moment
-              </Button>
-              <Button icon="bolt" onClick={onQuickRecord} style={{ flex: 1 }}>
-                Quick Record
-              </Button>
-            </div>
-          </div>
+          <RecordButton photoUrl={photoUrl} childName={child?.name} onQuick={onQuickRecord} />
         ) : (
           <Card className="card--quiet">
             <p style={{ color: 'var(--ink-2)', fontSize: '0.875rem' }}>
@@ -139,67 +90,99 @@ export function HomeScreen({ onQuickRecord }: { onQuickRecord: () => void }) {
           </Card>
         )}
 
-        <section className="stack" style={{ gap: '0.5rem' }}>
-          <h2 className="section-title">Today's moments</h2>
-          {today.length === 0 ? (
+        {perms.add && (
+          <div className="row" style={{ justifyContent: 'center', gap: '0.25rem' }}>
+            <Button variant="plain" size="sm" icon="clock" onClick={() => navigate('/live')}>
+              Start a timer instead
+            </Button>
+          </div>
+        )}
+
+        <section aria-label="Recent moments" className="stack">
+          <div className="segmented" role="group" aria-label="Show">
+            {PERIODS.map((p) => (
+              <button
+                key={p.key} type="button"
+                aria-pressed={period === p.key}
+                onClick={() => setPeriod(p.key)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="score-line">
+            <span>Average score</span>
+            <strong className={`score-value ${dClass(stats.avgDifficulty ? Math.round(stats.avgDifficulty) : null)}`}>
+              {stats.avgDifficulty === null ? '—' : stats.avgDifficulty}
+            </strong>
+            <span className="score-meta">
+              {stats.count} moment{stats.count === 1 ? '' : 's'}
+              {stats.totalSeconds > 0 && ` · ${formatDuration(stats.totalSeconds)}`}
+            </span>
+          </div>
+
+          {events.length === 0 ? (
             <Card className="card--quiet">
               <EmptyState
                 emoji="🌤️"
-                title="Nothing recorded today"
+                title={period === 'day' ? 'Nothing recorded today' : 'Nothing recorded yet'}
                 body="That is worth noting too. When something happens, recording it takes about ten seconds."
               />
             </Card>
           ) : (
-            <MomentList events={today} />
+            <ul className="score-list">
+              {events.map((e) => <ScoreRow key={e.id} event={e} showDay={period !== 'day'} />)}
+            </ul>
           )}
         </section>
-
-        {week.summary.count > 0 && (
-          <button type="button" className="card-button" onClick={() => navigate('/summary')}>
-            <div className="row-between">
-              <span>
-                <strong>This week so far</strong>
-                <span style={{ display: 'block', color: 'var(--ink-3)', fontSize: '0.8125rem' }}>
-                  {week.summary.count} moment{week.summary.count === 1 ? '' : 's'}
-                  {week.summary.avgDifficulty !== null && ` · average difficulty ${week.summary.avgDifficulty}/10`}
-                </span>
-              </span>
-              <Icon name="chevron" size={18} />
-            </div>
-          </button>
-        )}
       </div>
     </div>
   );
 }
 
-function Tile({
-  label, value, unit, sub, small, tone, icon, delay = 0,
-}: {
-  label: string; value: string; unit?: string; sub?: string; small?: boolean;
-  tone?: string; icon?: 'bolt' | 'insights' | 'clock' | 'pin'; delay?: number;
-}) {
+/** One moment: its score in a circle, and what was written about it. */
+function ScoreRow({ event, showDay }: { event: MomentEvent; showDay: boolean }) {
+  const { triggerName, nameOf } = useStore();
+  const triggers = event.trigger_ids.map(triggerName);
+  // What someone wrote comes first; the trigger is the fallback.
+  const text = event.description?.trim() || triggers.join(' · ') || 'No note';
+  const tone = triggers.length ? triggerClass(triggers[0]) : 'c-0';
+
   return (
-    <div
-      className={`tile rise-in ${tone ?? ''}`}
-      style={{ '--delay': `${delay}ms` } as React.CSSProperties}
-    >
-      {icon && <span className="tile-icon"><Icon name={icon} size={18} /></span>}
-      <span className="tile-label">{label}</span>
-      <span
-        className={`tile-value ${value === '—' ? 'is-empty' : ''}`}
-        style={small && value !== '—' ? { fontSize: '1.125rem', lineHeight: 1.3 } : undefined}
+    <li>
+      <button
+        type="button"
+        className={`score-row ${tone}`}
+        onClick={() => navigate(`/event/${event.id}`)}
+        aria-label={
+          `${formatTime(event.start_time)}. Difficulty ${event.difficulty ?? 'not recorded'}` +
+          `${event.difficulty ? ' out of 10, ' + difficultyWord(event.difficulty) : ''}. ${text}`
+        }
       >
-        {value}
-        {unit && <span className="unit">{unit}</span>}
-      </span>
-      {sub && <span className="tile-sub">{sub}</span>}
-    </div>
+        <span className={`score-bubble ${dClass(event.difficulty)}`} aria-hidden="true">
+          {event.difficulty ?? '–'}
+        </span>
+        <span className="score-text">
+          {/* dir="auto" so Hebrew, Arabic and English each read the right way. */}
+          <span className="score-title" dir="auto">{text}</span>
+          <span className="score-sub" dir="auto">
+            {showDay && `${new Date(event.start_time).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · `}
+            {formatTime(event.start_time)}
+            {event.duration_seconds ? ` · ${formatDuration(event.duration_seconds)}` : ''}
+            {` · ${nameOf(event.created_by)}`}
+          </span>
+        </span>
+        {event._pending && <span className="pending-dot" aria-label="Waiting to sync" />}
+      </button>
+    </li>
   );
 }
 
 /** Tap to record in full; press and hold for Quick Record. */
-function RecordButton({ onQuick }: { onQuick: () => void }) {
+function RecordButton({
+  photoUrl, childName, onQuick,
+}: { photoUrl: string | null; childName?: string; onQuick: () => void }) {
   const timer = useRef<number | null>(null);
   const held = useRef(false);
 
@@ -221,7 +204,9 @@ function RecordButton({ onQuick }: { onQuick: () => void }) {
   return (
     <button
       type="button"
-      className="record-btn"
+      className={`record-hero ${photoUrl ? 'has-photo' : ''}`}
+      style={photoUrl ? { backgroundImage: `url("${photoUrl}")` } : undefined}
+      aria-label="Record the moment. Press and hold for quick record."
       onPointerDown={start}
       onPointerUp={end}
       onPointerLeave={end}
@@ -229,10 +214,13 @@ function RecordButton({ onQuick }: { onQuick: () => void }) {
       onContextMenu={(e) => e.preventDefault()}
       onClick={() => { if (!held.current) navigate('/record'); }}
     >
-      <Icon name="plus" size={24} />
-      <span>
-        Record a Moment
-        <span className="hint">Hold for quick record</span>
+      <span className="record-hero-scrim" aria-hidden="true" />
+      <span className="record-hero-label">
+        <Icon name="plus" size={22} />
+        <span>
+          Record the moment
+          <small>{childName ? `for ${childName} · hold for quick record` : 'Hold for quick record'}</small>
+        </span>
       </span>
     </button>
   );
