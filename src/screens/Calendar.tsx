@@ -46,21 +46,20 @@ export function CalendarScreen() {
         : 'A gentler day overall';
 
   return (
-    <div className="screen" style={{ position: 'relative' }}>
+    <div className="screen has-head-photo" style={{ position: 'relative' }}>
       {headPhoto && <img className="head-photo" src={headPhoto} alt="" />}
 
       <PageHead
         title={monthLabel}
         subtitle={'Noticing the hard moments helps brighter days ahead.'}
-        trailing={
-          <span className="row" style={{ gap: '0.125rem', flexWrap: 'nowrap', position: 'relative' }}>
-            <IconButton label="Previous month" name="back" onClick={() => setMonth(addMonths(month, -1))} />
-            <IconButton label="Next month" name="chevron" onClick={() => setMonth(addMonths(month, 1))} />
-          </span>
-        }
       />
 
       <div className="stack">
+        <div className="row" style={{ justifyContent: 'flex-end', gap: '0.25rem', position: 'relative', zIndex: 2 }}>
+          <IconButton label="Previous month" name="back" onClick={() => setMonth(addMonths(month, -1))} />
+          <IconButton label="Next month" name="chevron" onClick={() => setMonth(addMonths(month, 1))} />
+        </div>
+
         <div className="ui-card cal-card">
           <div className="cal-grid" role="grid" aria-label={`Moments recorded in ${monthLabel}`}>
             {DOW_LABELS.map((d) => (

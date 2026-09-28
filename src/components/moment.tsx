@@ -58,7 +58,7 @@ export function PhotoCard({
   const photo = store.photoOf(slot);
 
   return (
-    <div className="photo-card">
+    <div className={`photo-card photo-card--${slot}`}>
       {photo && <img src={photo} alt="" />}
       <span className="photo-scrim" aria-hidden="true" />
       <div className="photo-text">

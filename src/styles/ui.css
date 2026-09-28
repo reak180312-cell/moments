@@ -618,3 +618,81 @@ body { background: var(--page); }
 .hours .hour .col { display: block; min-height: 6px; }
 .hours .hour small { font-size: 0.625rem; line-height: 1.15; }
 .mini-meta { white-space: nowrap; }
+
+/* =====================================================================
+   Photos you can actually see
+   ---------------------------------------------------------------------
+   The picture fills its card and stays sharp. Readability comes from a
+   small frosted panel under the words, which fades out across the middle
+   - so the text has a background and the photo does not.
+   ===================================================================== */
+
+.photo-card img {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.photo-card .photo-scrim {
+  inset: 0 auto 0 0;
+  width: 72%;
+  background: linear-gradient(95deg,
+    rgba(10, 22, 44, 0.52) 0%,
+    rgba(10, 22, 44, 0.44) 46%,
+    rgba(10, 22, 44, 0.16) 80%,
+    rgba(10, 22, 44, 0) 100%);
+  backdrop-filter: blur(7px) saturate(1.05);
+  -webkit-backdrop-filter: blur(7px) saturate(1.05);
+  -webkit-mask-image: linear-gradient(95deg, #000 58%, transparent 100%);
+  mask-image: linear-gradient(95deg, #000 58%, transparent 100%);
+}
+
+.photo-card .photo-text { max-width: 66%; }
+.photo-card h2 { text-shadow: 0 1px 10px rgba(0, 0, 0, 0.45); }
+.photo-card p { text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45); }
+
+/* The calendar portrait is a picture, not a watermark. */
+.head-photo {
+  top: -0.75rem;
+  right: 0;
+  width: 9rem;
+  height: 10.5rem;
+  object-position: center 8%;
+  border-radius: 0 0 0 28px;
+  -webkit-mask-image: linear-gradient(to left, #000 72%, transparent 100%);
+  mask-image: linear-gradient(to left, #000 72%, transparent 100%);
+}
+
+/* The frost stops short of the middle, so a face is never behind it. */
+.photo-card .photo-scrim {
+  width: 58%;
+  -webkit-mask-image: linear-gradient(95deg, #000 48%, transparent 100%);
+  mask-image: linear-gradient(95deg, #000 48%, transparent 100%);
+}
+.photo-card .photo-text { max-width: 56%; }
+.photo-card h2 { font-size: 1.25rem; }
+
+/* A page with a cut-out portrait keeps its words clear of it. */
+.has-head-photo .page-head > div { max-width: 60%; }
+.has-head-photo .head-photo { height: 7rem; width: 7.5rem; top: -0.75rem; }
+
+/* Each picture has its own subject, so each has its own focal point. */
+.photo-card--home img      { object-position: center 38%; }
+.photo-card--history img   { object-position: center 10%; }
+.photo-card--insights img  { object-position: center 16%; }
+.photo-card--encourage img { object-position: center 14%; }
+
+/* Re-framed sources sit differently; these are their new focal points. */
+.photo-card--history img   { object-position: center 30%; }
+.photo-card--insights img  { object-position: center 34%; }
+.photo-card--encourage img { object-position: center 26%; }
+
+.has-head-photo .page-head > div { max-width: 66%; }
+
+/* A touch higher, so nobody's head is clipped by the top edge. */
+.photo-card--history img  { object-position: center 22%; }
+.photo-card--insights img { object-position: center 24%; }
