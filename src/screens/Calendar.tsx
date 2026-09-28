@@ -7,7 +7,7 @@ import {
 import { summarise } from '../lib/stats';
 import { monthSlot } from '../lib/github';
 import { EmptyState, Icon } from '../components/ui';
-import { MomentList, StatCell, StatSplit, iClass, showScore } from '../components/moment';
+import { MomentList, StatCell, StatSplit, dayClass, iClass, showScore } from '../components/moment';
 
 export function CalendarScreen() {
   const store = useStore();
@@ -110,7 +110,7 @@ export function CalendarScreen() {
                     ))}
                   </span>
                   {isPast && dayTotal > 0 && (
-                    <span className="cal-total" aria-hidden="true">{dayTotal}</span>
+                    <span className={`cal-total ${dayClass(dayTotal)}`} aria-hidden="true">{dayTotal}</span>
                   )}
                 </button>
               );

@@ -787,3 +787,29 @@ body { background: var(--page); }
 /* The number carries the score now, so the tile is just the number. */
 .score-tile { min-height: 3.5rem; width: 3.5rem; }
 .score-tile b { font-size: 1.5rem; }
+
+/* ------------------------------------------------ how a day totalled up */
+/* Green where the day was gentle, red where it was heavy. The number is
+   still the number; the colour only agrees with it.                      */
+
+.day-1 { --day-ink: #1d7a41; }   /* 1-5   gentle  */
+.day-2 { --day-ink: #5c7a1a; }   /* 6-10          */
+.day-3 { --day-ink: #8a6218; }   /* 11-15 mixed   */
+.day-4 { --day-ink: #a04a1c; }   /* 16-22         */
+.day-5 { --day-ink: #a32420; }   /* 23+   heavy   */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .day-1 { --day-ink: #6fd396; }
+  :root:not([data-theme="light"]) .day-2 { --day-ink: #a8cf6a; }
+  :root:not([data-theme="light"]) .day-3 { --day-ink: #e6bd6f; }
+  :root:not([data-theme="light"]) .day-4 { --day-ink: #f0a978; }
+  :root:not([data-theme="light"]) .day-5 { --day-ink: #f29b95; }
+}
+:root[data-theme="dark"] .day-1 { --day-ink: #6fd396; }
+:root[data-theme="dark"] .day-2 { --day-ink: #a8cf6a; }
+:root[data-theme="dark"] .day-3 { --day-ink: #e6bd6f; }
+:root[data-theme="dark"] .day-4 { --day-ink: #f0a978; }
+:root[data-theme="dark"] .day-5 { --day-ink: #f29b95; }
+
+.cal-total { color: var(--day-ink, var(--i-ink)); }
+.cal-day.is-selected .cal-total { color: rgba(255, 255, 255, 0.95); }

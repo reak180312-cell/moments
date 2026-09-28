@@ -7,6 +7,19 @@ import { difficultyWord } from './Difficulty';
 import { Avatar, Icon } from './ui';
 
 /** The tint a score wears, everywhere it appears. */
+/**
+ * The colour a day's total wears: green for a gentle day, red for a heavy one.
+ * A total is a sum, so it climbs with both the number of moments and how hard
+ * they were - the bands below are set for a day of a few moments.
+ */
+export function dayClass(total: number): string {
+  if (total <= 5) return 'day-1';
+  if (total <= 10) return 'day-2';
+  if (total <= 15) return 'day-3';
+  if (total <= 22) return 'day-4';
+  return 'day-5';
+}
+
 export function iClass(score: number | null | undefined): string {
   return `i-${score && score >= 1 && score <= 10 ? Math.round(score) : 0}`;
 }
