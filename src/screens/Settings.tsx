@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useStore } from '../data/store';
 import { navigate } from '../lib/router';
 import { prefs } from '../lib/local';
@@ -7,6 +7,20 @@ import { setReduceMotion, setTextSize, setTheme, type TextSize, type ThemeChoice
 import { notificationPermission, requestNotifications } from '../lib/reminders';
 import { download, downloadJson, eventsToCsv } from '../lib/export';
 import { fileToJpegBase64 } from '../lib/image';
+import { PageHead } from '../components/moment';
+import type { PhotoSlot } from '../lib/github';
+
+const PHOTO_LABELS: { slot: PhotoSlot; label: string }[] = [
+  { slot: 'profile', label: 'Profile picture' },
+  { slot: 'home', label: 'Home' },
+  { slot: 'history', label: 'History' },
+  { slot: 'insights', label: 'Insights' },
+  { slot: 'encourage', label: 'Encouragement' },
+  { slot: 'calendar', label: 'Calendar' },
+];
+
+type Tone = 'blue' | 'violet' | 'rose' | 'green' | 'amber';
+type IconName = 'people' | 'settings' | 'copy' | 'bolt' | 'check' | 'info' | 'history' | 'sun' | 'insights' | 'download' | 'trash';
 import type { FamilyMember, Role } from '../lib/types';
 import {
   Avatar, Button, Chip, ConfirmDialog, Field, Fieldset, Icon, Segmented,
@@ -15,21 +29,21 @@ import {
 
 /* A grouped list: the settings themselves do the talking, one line each. */
 
-function Group({ label, children }: { label?: string; children: ReactNode }) {
-  return (
-    <section>
-      {label && <p className="group-label">{label}</p>}
-      <div className="rows">{children}</div>
-    </section>
-  );
-}
-
 function RowButton({
-  label, value, onClick, danger,
-}: { label: string; value?: string; onClick: () => void; danger?: boolean }) {
+  label, value, count, onClick, danger, icon, tone,
+}: {
+  label: string; value?: string; count?: number; onClick: () => void;
+  danger?: boolean; icon?: IconName; tone?: Tone;
+}) {
   return (
     <button type="button" className="row-item" onClick={onClick}>
+      {icon && (
+        <span className={`icon-tile tone-${tone ?? 'blue'}`} aria-hidden="true">
+          <Icon name={icon} size={17} />
+        </span>
+      )}
       <span className="row-main" style={danger ? { color: 'var(--danger)' } : undefined}>{label}</span>
+      {count !== undefined && <span className="count-pill">{count}</span>}
       {value && <span className="row-value">{value}</span>}
       <Icon name="chevron" size={16} className="row-chev" />
     </button>
@@ -60,6 +74,9 @@ export function SettingsScreen() {
   const [notifyWeekly, setNotifyWeekly] = useState<boolean>(() => prefs.get('notifyWeekly', false));
 
   const isOwner = store.family?.owner_id === store.session?.user.id;
+  const child = store.profiles.find((p) => p.id === store.activeProfileId);
+  const childName = child?.name ?? 'your child';
+  const profileFace = store.photoOf('profile');
   const triggerCount = store.triggers.filter((t) => !t.is_archived).length;
   const helpfulCount = store.helpful.filter((t) => !t.is_archived).length;
 
@@ -113,58 +130,72 @@ export function SettingsScreen() {
 
   return (
     <div className="screen">
-      <header className="screen-bar">
-        <span />
-        <h1>Settings</h1>
-        <span />
-      </header>
+      <PageHead title="Settings" subtitle={`Manage your family, ${childName}, and app preferences.`} />
 
-      <div className="stack-lg">
-        <Group>
-          <RowButton label="Your name" value={store.me?.display_name} onClick={() => setPane('name')} />
+      <div className="stack">
+        {child && (
+          <div className="profile-card">
+            {profileFace && <img className="profile-bg" src={profileFace} alt="" />}
+            <span className="profile-scrim" aria-hidden="true" />
+            {profileFace
+              ? <img className="profile-face" src={profileFace} alt="" />
+              : <span className="profile-face" style={{ display: 'grid', placeItems: 'center', background: 'rgba(255,255,255,0.25)', fontSize: '1.5rem', fontWeight: 700 }}>{child.name[0]}</span>}
+            <div className="profile-text">
+              <h2>{child.name}</h2>
+              {child.description && <p>{child.description}</p>}
+            </div>
+          </div>
+        )}
+
+        <section className="group-card">
+          <h2>Our family</h2>
           {store.perms.manage && (
-            <RowButton label="Family name" value={store.family?.name} onClick={() => setPane('family')} />
+            <RowButton tone="blue" icon="people" label="Family name" value={store.family?.name} onClick={() => setPane('family')} />
           )}
+          <RowButton tone="violet" icon="people" label="People" value={`${store.members.length}`} onClick={() => setPane('people')} />
+          <RowButton tone="blue" icon="settings" label="Your name" value={store.me?.display_name} onClick={() => setPane('name')} />
+        </section>
+
+        <section className="group-card">
+          <h2>Child &amp; journaling</h2>
           <RowButton
-            label="People"
-            value={`${store.members.length}`}
-            onClick={() => setPane('people')}
-          />
-          <RowButton
+            tone="rose" icon="people"
             label={store.profiles.length > 1 ? 'Children' : 'Child'}
             value={store.profiles.map((p) => p.name).join(', ')}
             onClick={() => setPane('children')}
           />
           {store.backend === 'github' && (
             <RowButton
-              label="Home photo"
-              value={store.photoUrl ? 'Set' : 'None'}
+              tone="green" icon="copy" label="Photos"
+              value={Object.keys(store.photos).length ? 'Set' : 'None'}
               onClick={() => setPane('photo')}
             />
           )}
-          <RowButton label="Triggers" value={`${triggerCount}`} onClick={() => setManagingVocab('triggers')} />
-          <RowButton label="What helped" value={`${helpfulCount}`} onClick={() => setManagingVocab('helpful')} />
-        </Group>
+          <RowButton tone="rose" icon="bolt" label="Triggers" count={triggerCount} onClick={() => setManagingVocab('triggers')} />
+          <RowButton tone="green" icon="check" label="What helped" count={helpfulCount} onClick={() => setManagingVocab('helpful')} />
+        </section>
 
-        <Group>
-          <RowButton label="Appearance" value={themeLabel} onClick={() => setPane('appearance')} />
+        <section className="group-card">
+          <h2>App preferences</h2>
           <RowButton
-            label="Notifications"
+            tone="blue" icon="info" label="Notifications"
             value={notifyOpen || notifyWeekly ? 'On' : 'Off'}
             onClick={() => setPane('notifications')}
           />
-          <RowButton label="Sync" value={syncLabel} onClick={() => void store.sync()} />
-        </Group>
+          <RowButton tone="violet" icon="history" label="Sync" value={syncLabel} onClick={() => void store.sync()} />
+          <RowButton tone="amber" icon="sun" label="Appearance" value={themeLabel} onClick={() => setPane('appearance')} />
+        </section>
 
-        <Group>
-          <RowButton label="Reports" onClick={() => navigate('/reports')} />
-          <RowButton label="Export my data" onClick={() => setPane('export')} />
+        <section className="group-card">
+          <h2>Data &amp; privacy</h2>
+          <RowButton tone="blue" icon="insights" label="Reports" onClick={() => navigate('/reports')} />
+          <RowButton tone="green" icon="download" label="Export my data" onClick={() => setPane('export')} />
           {store.preview ? (
-            <RowButton label="Clear the sample data" danger onClick={() => void store.resetPreview()} />
+            <RowButton tone="rose" icon="trash" label="Clear the sample data" danger onClick={() => void store.resetPreview()} />
           ) : (
-            <RowButton label="Delete my data" danger onClick={() => setConfirmDelete(true)} />
+            <RowButton tone="rose" icon="trash" label="Delete my data" danger onClick={() => setConfirmDelete(true)} />
           )}
-        </Group>
+        </section>
 
         <Button
           variant="plain" block
@@ -285,6 +316,17 @@ export function SettingsScreen() {
                     Rename
                   </Button>
                 )}
+                {store.perms.manage && (
+                  <Button
+                    size="sm" variant="plain"
+                    onClick={() => {
+                      const next = window.prompt('A sentence about them', p.description ?? '');
+                      if (next !== null) store.describeProfile(p.id, next).catch((e) => toast(e.message));
+                    }}
+                  >
+                    Describe
+                  </Button>
+                )}
               </div>
             ))}
           </div>
@@ -292,47 +334,57 @@ export function SettingsScreen() {
       )}
 
       {pane === 'photo' && (
-        <Sheet title="Home photo" onClose={() => setPane(null)}>
-          <div className="stack">
-            {store.photoUrl && (
-              <img
-                src={store.photoUrl} alt=""
-                style={{
-                  width: '100%', aspectRatio: '2.4 / 1', objectFit: 'contain',
-                  borderRadius: 'var(--radius-md)', background: 'var(--surface-2)',
-                }}
-              />
-            )}
-            <div className="row" style={{ gap: '0.5rem' }}>
-              <label className="btn btn--primary" style={{ cursor: 'pointer' }}>
-                {store.photoUrl ? 'Change' : 'Choose a photo'}
-                <input
-                  type="file" accept="image/*" className="sr-only"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = '';
-                    if (!file) return;
-                    setBusy(true);
-                    try {
-                      await store.setPhoto(await fileToJpegBase64(file));
-                      toast('Updated on every device.');
-                    } catch (err) {
-                      toast((err as Error).message);
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                />
-              </label>
-              {store.photoUrl && (
-                <Button
-                  variant="plain" disabled={busy}
-                  onClick={() => store.setPhoto(null).then(() => toast('Removed.')).catch((e) => toast(e.message))}
-                >
-                  Remove
-                </Button>
-              )}
-            </div>
+        <Sheet title="Photos" onClose={() => setPane(null)}>
+          <div className="stack-lg">
+            {PHOTO_LABELS.map(({ slot, label }) => {
+              const current = store.photoOf(slot);
+              return (
+                <div key={slot} className="stack" style={{ gap: '0.5rem' }}>
+                  <span className="form-label">{label}</span>
+                  {current && (
+                    <img
+                      src={current} alt=""
+                      style={{
+                        width: '100%', aspectRatio: slot === 'profile' ? '1 / 1' : '2.4 / 1',
+                        maxHeight: slot === 'profile' ? '7rem' : undefined,
+                        objectFit: 'cover', objectPosition: 'center 20%',
+                        borderRadius: '14px', background: 'var(--surface-2)',
+                      }}
+                    />
+                  )}
+                  <div className="row" style={{ gap: '0.5rem' }}>
+                    <label className="btn btn--sm" style={{ cursor: 'pointer' }}>
+                      {current ? 'Change' : 'Choose'}
+                      <input
+                        type="file" accept="image/*" className="sr-only"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          if (!file) return;
+                          setBusy(true);
+                          try {
+                            await store.setPhoto(slot, await fileToJpegBase64(file));
+                            toast('Updated on every device.');
+                          } catch (err) {
+                            toast((err as Error).message);
+                          } finally {
+                            setBusy(false);
+                          }
+                        }}
+                      />
+                    </label>
+                    {current && (
+                      <Button
+                        size="sm" variant="plain" disabled={busy}
+                        onClick={() => store.setPhoto(slot, null).then(() => toast('Removed.')).catch((e) => toast(e.message))}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
             <p className="help">Kept in your private record, never in the app's public code.</p>
           </div>
         </Sheet>

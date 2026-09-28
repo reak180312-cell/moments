@@ -91,14 +91,14 @@ interface State {
   lastSyncedAt: string | null;
   loadingRemote: boolean;
   error: string | null;
-  photoUrl: string | null;
+  photos: Record<string, string>;
 }
 
 const initialState: State = {
   ready: false, session: null, me: null, family: null, members: [], people: {},
   profiles: [], activeProfileId: null, triggers: [], helpful: [], events: {},
   outbox: [], vocabOutbox: [], conflicts: [], online: navigator.onLine,
-  syncing: false, lastSyncedAt: null, loadingRemote: false, error: null, photoUrl: null,
+  syncing: false, lastSyncedAt: null, loadingRemote: false, error: null, photos: {},
 };
 
 interface Store extends State {
@@ -131,13 +131,15 @@ interface Store extends State {
   updateMyName: (name: string) => Promise<void>;
   renameFamily: (name: string) => Promise<void>;
   renameProfile: (profileId: string, name: string) => Promise<void>;
+  describeProfile: (profileId: string, text: string) => Promise<void>;
   addProfile: (name: string) => Promise<void>;
   setActiveProfile: (id: string) => void;
 
   backend: BackendMode;
   repoUrl: string;
   connectGithub: (token: string, familyName: string, childName: string) => Promise<void>;
-  setPhoto: (base64: string | null) => Promise<void>;
+  setPhoto: (slot: gh.PhotoSlot, base64: string | null) => Promise<void>;
+  photoOf: (slot: gh.PhotoSlot) => string | null;
   inviteGithubUser: (username: string, role: Role) => Promise<void>;
   preview: boolean;
   resetPreview: () => Promise<void>;
@@ -211,7 +213,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
 
       if (PREVIEW) {
-        const previewPhoto = await local.kvGet<string>('photo');
+        const previewPhotos = (await local.kvGet<Record<string, string>>('photos')) ?? {};
         let sample = events;
         if (!sample.length) {
           sample = buildDemoEvents();
@@ -231,7 +233,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           events: Object.fromEntries(sample.map((e) => [e.id, e])),
           outbox: [],
           vocabOutbox: [],
-          photoUrl: previewPhoto,
+          photos: previewPhotos,
         });
         return;
       }
@@ -246,14 +248,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // The stored identity is this device's sign-in: no round trip needed to
         // open the app, so a cached record is on screen immediately.
         const identity = ghIdentity();
-        const photoUrl = await local.kvGet<string>('photo');
+        const photos = (await local.kvGet<Record<string, string>>('photos')) ?? {};
         patch({
           ...(cached ?? {}),
           events: map,
           outbox,
           vocabOutbox,
           ready: true,
-          photoUrl,
+          photos,
           session: identity && ghConfig() ? fakeSession(identity.id) : null,
         });
         return;
@@ -331,6 +333,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, [patch]);
 
+  /** Photos are heavy and rarely change, so the bytes follow the blob id. */
+  const syncPhotos = useCallback(async (cfg: gh.GhConfig, shas: gh.PhotoShas) => {
+    const known = (await local.kvGet<Record<string, string>>('photoShas')) ?? {};
+    const cached = (await local.kvGet<Record<string, string>>('photos')) ?? {};
+    let changed = false;
+
+    for (const slot of gh.PHOTO_SLOTS) {
+      const sha = shas[slot];
+      if (!sha) {
+        if (cached[slot]) { delete cached[slot]; delete known[slot]; changed = true; }
+        continue;
+      }
+      if (known[slot] === sha && cached[slot]) continue;
+      const data = await gh.readPhotoBlob(cfg, sha).catch(() => null);
+      if (data) { cached[slot] = data; known[slot] = sha; changed = true; }
+    }
+
+    if (!changed) return;
+    await local.kvSet('photos', cached);
+    await local.kvSet('photoShas', known);
+    patch({ photos: cached });
+  }, [patch]);
+
   const pull = useCallback(async () => {
     const s = stateRef.current;
 
@@ -344,10 +369,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       try {
         const snap = await gh.pullAll(cfg);
         void local.putMany('events', snap.events);
-        gh.readPhoto(cfg).then((photo) => {
-          void local.kvSet('photo', photo);
-          patch({ photoUrl: photo });
-        }).catch(() => { /* the photo is decoration; never block on it */ });
+        void syncPhotos(cfg, snap.photoShas);
 
         const events: Record<string, MomentEvent> = {};
         snap.events.forEach((e) => { events[e.id] = e; });
@@ -1011,20 +1033,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   /** The picture on the home screen. Stored with the family record, so every
    *  device shows the same one - and never in the app's public repository. */
-  const setPhoto = useCallback(async (base64: string | null) => {
+  const setPhoto = useCallback(async (slot: gh.PhotoSlot, base64: string | null) => {
     const cfg = ghConfig();
     if (!cfg) throw new Error('Not connected to the family record.');
     if (!navigator.onLine) throw new Error('This needs a connection.');
+
+    const cached = { ...((await local.kvGet<Record<string, string>>('photos')) ?? {}) };
     if (base64) {
-      await gh.savePhoto(cfg, base64);
-      const url = `data:image/jpeg;base64,${base64}`;
-      await local.kvSet('photo', url);
-      patch({ photoUrl: url });
+      await gh.savePhoto(cfg, slot, base64);
+      cached[slot] = `data:image/jpeg;base64,${base64}`;
     } else {
-      await gh.removePhoto(cfg);
-      await local.kvSet('photo', null);
-      patch({ photoUrl: null });
+      await gh.removePhoto(cfg, slot);
+      delete cached[slot];
     }
+    await local.kvSet('photos', cached);
+    await local.kvSet('photoShas', {});   // force a refresh of ids next sync
+    patch({ photos: cached });
   }, [patch]);
 
   /** Connect this device to the family's private repository. */
@@ -1195,6 +1219,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await pull();
   }, [editFamilyFile, pull]);
 
+  const describeProfile = useCallback(async (profileId: string, text: string) => {
+    if (GITHUB) {
+      await editFamilyFile('Describe a child', (f) => ({
+        ...f,
+        profiles: f.profiles.map((p) => (p.id === profileId ? { ...p, description: text.trim() || null } : p)),
+      }));
+      return;
+    }
+    requireOnline();
+    const { error } = await supabase.from('profiles').update({ description: text.trim() || null }).eq('id', profileId);
+    if (error) throw new Error(friendlyError(error));
+    await pull();
+  }, [editFamilyFile, pull]);
+
   const addProfile = useCallback(async (name: string) => {
     if (GITHUB) {
       await editFamilyFile('Add a child profile', (f) => ({
@@ -1342,10 +1380,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     addHelpful: (name) => addVocab('helpful_actions', name),
     updateVocab,
     updateMember, removeMember, createInvite, updateMyName, renameFamily,
-    renameProfile, addProfile, setActiveProfile,
+    renameProfile, describeProfile, addProfile, setActiveProfile,
     backend: backendMode,
     repoUrl: ghRepoUrl,
     connectGithub, inviteGithubUser, setPhoto,
+    photoOf: (slot) => state.photos[slot] ?? null,
     preview: PREVIEW, resetPreview,
     resolveConflict, dismissConflict, retryOutbox, discardOutbox,
     sync: async () => { await pull(); await flush(); },

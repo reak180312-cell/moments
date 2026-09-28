@@ -7,6 +7,7 @@ import { applyAppearance } from './lib/theme';
 import './styles/app.css';
 import './styles/colour.css';
 import './styles/refine.css';
+import './styles/ui.css';
 
 applyAppearance();
 

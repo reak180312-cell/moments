@@ -249,6 +249,7 @@ export async function bootstrap(
 /* ------------------------------------------------------------------ pull */
 
 export interface GhSnapshot {
+  photoShas: PhotoShas;
   family: Family | null;
   members: FamilyMember[];
   people: Record<string, AppUser>;
@@ -291,6 +292,7 @@ export async function pullAll(cfg: GhConfig): Promise<GhSnapshot> {
   }
 
   return {
+    photoShas: photoShasFromTree(body.tree),
     family: familyFile.data?.family ?? null,
     members: familyFile.data?.members ?? [],
     people: familyFile.data?.people ?? {},
@@ -551,47 +553,61 @@ export async function eraseAll(cfg: GhConfig): Promise<void> {
 
 export type { FamilyFile, VocabFile };
 
-/* ------------------------------------------------------------- the photo */
+/* ------------------------------------------------------------- photos */
 
-const PHOTO_PATH = 'photo.jpg';
+/** The pictures the app shows, one per place it shows one. */
+export const PHOTO_SLOTS = ['home', 'history', 'insights', 'encourage', 'calendar', 'profile'] as const;
+export type PhotoSlot = (typeof PHOTO_SLOTS)[number];
+
+export type PhotoShas = Partial<Record<PhotoSlot, string>>;
 
 /**
- * The picture on the home screen.
+ * Photos live in the private repository with everything else - a picture of a
+ * child has no business on a public web host.
  *
- * It lives in the private repository with everything else, never in the app's
- * own public one, and it is fetched with the family's own token. A photo of a
- * child does not belong on a public web host.
+ * Only their blob ids come back with each sync. A photo is a hundred-odd
+ * kilobytes and the app polls every ten seconds, so the bytes are fetched once
+ * and then only when the id changes.
  */
-export async function readPhoto(cfg: GhConfig): Promise<string | null> {
-  const res = await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${PHOTO_PATH}?ref=${BRANCH}`);
-  if (res.status === 404) return null;
-  if (!res.ok) return null;
-  const body = await res.json() as { content?: string; sha?: string };
-  if (!body.content) return null;
-  return `data:image/jpeg;base64,${body.content.replace(/\s/g, '')}`;
+export function photoShasFromTree(tree: { path: string; sha: string; type: string }[]): PhotoShas {
+  const out: PhotoShas = {};
+  tree.forEach((node) => {
+    if (node.type !== 'blob') return;
+    const match = /^photos\/([a-z]+)\.jpg$/.exec(node.path);
+    const slot = match?.[1] as PhotoSlot | undefined;
+    if (slot && (PHOTO_SLOTS as readonly string[]).includes(slot)) out[slot] = node.sha;
+  });
+  return out;
 }
 
-export async function savePhoto(cfg: GhConfig, base64: string): Promise<void> {
-  const current = await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${PHOTO_PATH}?ref=${BRANCH}`);
+export async function readPhotoBlob(cfg: GhConfig, sha: string): Promise<string | null> {
+  const res = await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/git/blobs/${sha}`);
+  if (!res.ok) return null;
+  const blob = await res.json() as { content: string; encoding: string };
+  if (blob.encoding !== 'base64') return null;
+  return `data:image/jpeg;base64,${blob.content.replace(/\s/g, '')}`;
+}
+
+export async function savePhoto(cfg: GhConfig, slot: PhotoSlot, base64: string): Promise<void> {
+  const path = `photos/${slot}.jpg`;
+  const current = await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${path}?ref=${BRANCH}`);
   const sha = current.ok ? ((await current.json()) as { sha: string }).sha : undefined;
-  const res = await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${PHOTO_PATH}`, {
+  const res = await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${path}`, {
     method: 'PUT',
     body: JSON.stringify({
-      message: 'Update the home screen photo',
-      content: base64,
-      branch: BRANCH,
-      ...(sha ? { sha } : {}),
+      message: `Photo: ${slot}`, content: base64, branch: BRANCH, ...(sha ? { sha } : {}),
     }),
   });
   if (!res.ok) throw new GhError(`Could not save the photo (${res.status}).`, res.status);
 }
 
-export async function removePhoto(cfg: GhConfig): Promise<void> {
-  const current = await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${PHOTO_PATH}?ref=${BRANCH}`);
+export async function removePhoto(cfg: GhConfig, slot: PhotoSlot): Promise<void> {
+  const path = `photos/${slot}.jpg`;
+  const current = await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${path}?ref=${BRANCH}`);
   if (!current.ok) return;
   const { sha } = await current.json() as { sha: string };
-  await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${PHOTO_PATH}`, {
+  await call(cfg, `/repos/${cfg.owner}/${cfg.repo}/contents/${path}`, {
     method: 'DELETE',
-    body: JSON.stringify({ message: 'Remove the home screen photo', sha, branch: BRANCH }),
+    body: JSON.stringify({ message: `Remove photo: ${slot}`, sha, branch: BRANCH }),
   });
 }

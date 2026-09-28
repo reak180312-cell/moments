@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../data/store';
 import {
-  DOW_LABELS, addMonths, dayKey, formatDayLabel, formatDuration, isSameDay,
-  startOfDay, startOfMonth, startOfWeek, addDays,
+  DOW_LABELS, addDays, addMonths, dayKey, formatDayLabel, isSameDay,
+  startOfDay, startOfMonth, startOfWeek,
 } from '../lib/time';
 import { summarise } from '../lib/stats';
-import { Card, EmptyState, IconButton } from '../components/ui';
-import { MomentList } from '../components/EventList';
-import { dClass } from '../components/Difficulty';
+import { EmptyState, Icon, IconButton } from '../components/ui';
+import { MomentList, PageHead, StatCell, StatSplit, iClass, showScore } from '../components/moment';
 
 export function CalendarScreen() {
   const store = useStore();
@@ -36,21 +35,33 @@ export function CalendarScreen() {
   const days = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
 
   const selectedEvents = byDay.get(dayKey(selected)) ?? [];
-  const selectedStats = summarise(selectedEvents, store.triggers);
+  const stats = summarise(selectedEvents, store.triggers);
   const monthLabel = month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const headPhoto = store.photoOf('calendar');
+
+  const dayWord = stats.avgDifficulty === null
+    ? null
+    : stats.avgDifficulty >= 7 ? 'A harder day overall'
+      : stats.avgDifficulty >= 4 ? 'A mixed day'
+        : 'A gentler day overall';
 
   return (
-    <div className="screen">
-      <header className="screen-head">
-        <h1>{monthLabel}</h1>
-        <div className="row" style={{ gap: '0.25rem' }}>
-          <IconButton label="Previous month" name="back" onClick={() => setMonth(addMonths(month, -1))} />
-          <IconButton label="Next month" name="chevron" onClick={() => setMonth(addMonths(month, 1))} />
-        </div>
-      </header>
+    <div className="screen" style={{ position: 'relative' }}>
+      {headPhoto && <img className="head-photo" src={headPhoto} alt="" />}
 
-      <div className="stack-lg">
-        <Card>
+      <PageHead
+        title={monthLabel}
+        subtitle={'Noticing the hard moments helps brighter days ahead.'}
+        trailing={
+          <span className="row" style={{ gap: '0.125rem', flexWrap: 'nowrap', position: 'relative' }}>
+            <IconButton label="Previous month" name="back" onClick={() => setMonth(addMonths(month, -1))} />
+            <IconButton label="Next month" name="chevron" onClick={() => setMonth(addMonths(month, 1))} />
+          </span>
+        }
+      />
+
+      <div className="stack">
+        <div className="ui-card cal-card">
           <div className="cal-grid" role="grid" aria-label={`Moments recorded in ${monthLabel}`}>
             {DOW_LABELS.map((d) => (
               <div key={d} className="cal-dow" role="columnheader" aria-label={d}>{d}</div>
@@ -70,16 +81,14 @@ export function CalendarScreen() {
                   type="button"
                   role="gridcell"
                   className={[
-                    'cal-day',
-                    dClass(peak),
-                    list.length ? 'has-any' : '',
+                    'cal-day', iClass(peak),
                     otherMonth ? 'is-other' : '',
                     isToday ? 'is-today' : '',
                     isSelected ? 'is-selected' : '',
                   ].filter(Boolean).join(' ')}
                   aria-label={
                     `${formatDayLabel(day)}: ${list.length} moment${list.length === 1 ? '' : 's'}` +
-                    (peak ? `, highest recorded difficulty ${peak} out of 10` : '')
+                    (peak ? `, highest recorded intensity ${peak} out of 10` : '')
                   }
                   aria-selected={isSelected}
                   onClick={() => setSelected(startOfDay(day))}
@@ -87,41 +96,60 @@ export function CalendarScreen() {
                   <span aria-hidden="true">{day.getDate()}</span>
                   <span className="cal-dots" aria-hidden="true">
                     {list.slice(0, 3).map((e) => (
-                      <i key={e.id} className={dClass(e.difficulty)} style={{ background: 'var(--fill)' }} />
+                      <i key={e.id} className={iClass(e.difficulty)} />
                     ))}
                   </span>
-                  {list.length > 3 && <span className="cal-count" aria-hidden="true">{list.length}</span>}
                 </button>
               );
             })}
           </div>
+        </div>
 
-        </Card>
-
-        <section className="stack" style={{ gap: '0.5rem' }}>
-          <h2 className="section-title">{formatDayLabel(selected)}</h2>
-
-          {selectedEvents.length === 0 ? (
-            <Card className="card--quiet">
-              <EmptyState emoji="·" title="Nothing recorded on this day" />
-            </Card>
-          ) : (
-            <>
-              <Card className="card--quiet">
-                <div className="row" style={{ justifyContent: 'space-between' }}>
-                  <span>{selectedStats.count} moment{selectedStats.count === 1 ? '' : 's'}</span>
-                  {selectedStats.avgDifficulty !== null && (
-                    <span>Average {selectedStats.avgDifficulty}/10</span>
-                  )}
-                  {selectedStats.totalSeconds > 0 && (
-                    <span>{formatDuration(selectedStats.totalSeconds)} total</span>
+        {selectedEvents.length > 0 && (
+          <StatSplit
+            left={
+              <StatCell
+                label="Average intensity"
+                value={showScore(stats.avgDifficulty)}
+                unit="/ 10"
+                note={`Based on ${stats.count} moment${stats.count === 1 ? '' : 's'} on ${
+                  selected.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}
+              />
+            }
+            right={
+              <div className="stat-cell" style={{ flexWrap: 'wrap' }}>
+                <div className="stat-body">
+                  <div className="stat-value">
+                    {stats.count}
+                    <small style={{ marginLeft: '0.375rem' }}>
+                      moment{stats.count === 1 ? '' : 's'} this day
+                    </small>
+                  </div>
+                  {dayWord && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <span className={`day-pill ${iClass(stats.avgDifficulty)}`}>{dayWord}</span>
+                    </div>
                   )}
                 </div>
-              </Card>
-              <MomentList events={selectedEvents} />
-            </>
+              </div>
+            }
+          />
+        )}
+
+        <div className="list-head">
+          <h2>
+            Moments on {selected.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+          </h2>
+          {selectedEvents.length > 0 && (
+            <button type="button" className="link-pill" onClick={() => location.hash = '/history'}>
+              View all <Icon name="chevron" size={14} />
+            </button>
           )}
-        </section>
+        </div>
+
+        {selectedEvents.length === 0
+          ? <EmptyState emoji="·" title="Nothing recorded on this day" />
+          : <MomentList events={selectedEvents} />}
       </div>
     </div>
   );

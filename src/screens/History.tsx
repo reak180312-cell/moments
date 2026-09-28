@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../data/store';
-import { RANGE_OPTIONS, formatDuration, resolveRange, type RangeKey } from '../lib/time';
-import { applyFilters, emptyFilters, filtersActive, forRange, summarise, type EventFilters } from '../lib/stats';
+import { RANGE_OPTIONS, resolveRange, type RangeKey } from '../lib/time';
+import { applyFilters, emptyFilters, filtersActive, forRange, type EventFilters } from '../lib/stats';
 import { LOCATIONS } from '../lib/types';
 import { Button, Chip, EmptyState, Field, Fieldset, Icon, Sheet } from '../components/ui';
-import { MomentList } from '../components/EventList';
+import { ChildPill, MomentByDay, PageHead, PhotoCard } from '../components/moment';
 
 export function HistoryScreen() {
   const store = useStore();
@@ -26,25 +26,32 @@ export function HistoryScreen() {
     () => applyFilters(inWindow, filters, { trigger: store.triggerName, helpful: store.helpfulName }),
     [inWindow, filters, store.triggerName, store.helpfulName]
   );
-  const stats = useMemo(() => summarise(results, store.triggers), [results, store.triggers]);
   const activeCount = filtersActive(filters);
 
   return (
     <div className="screen">
-      <header className="screen-head">
-        <h1>{range.label}</h1>
-      </header>
+      <PageHead
+        title="History"
+        subtitle="A clear view of recent hard moments."
+        trailing={<ChildPill />}
+      />
 
-      <div className="stack-lg">
-        <div
-          className="chip-wrap"
-          role="group" aria-label="Time range"
-          style={{ overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: '0.25rem' }}
-        >
+      <div className="stack">
+        <PhotoCard
+          slot="history"
+          heading="You're doing great."
+          body="Every hard moment you notice helps build brighter days."
+        />
+
+        <div className="tab-row" role="group" aria-label="Time range">
           {RANGE_OPTIONS.map((o) => (
-            <Chip key={o.key} selected={rangeKey === o.key} onClick={() => setRangeKey(o.key)}>
+            <button
+              key={o.key} type="button"
+              aria-pressed={rangeKey === o.key}
+              onClick={() => setRangeKey(o.key)}
+            >
               {o.label}
-            </Chip>
+            </button>
           ))}
         </div>
 
@@ -74,11 +81,7 @@ export function HistoryScreen() {
           </Button>
         </div>
 
-        <p className="result-line">
-          {stats.count} moment{stats.count === 1 ? '' : 's'}
-          {stats.avgDifficulty !== null && ` · average ${stats.avgDifficulty}/10`}
-          {stats.totalSeconds > 0 && ` · ${formatDuration(stats.totalSeconds)}`}
-        </p>
+
 
         {results.length === 0 ? (
           <EmptyState
@@ -96,7 +99,7 @@ export function HistoryScreen() {
             }
           />
         ) : (
-          <MomentList events={results} groupByDay />
+          <MomentByDay events={results} />
         )}
       </div>
 

@@ -60,7 +60,9 @@ export default function App() {
   else if (parts[0] === 'reports') screen = <ReportsScreen />;
   else if (parts[0] === 'summary') screen = <WeeklySummaryScreen />;
 
-  const fullScreen = ['record', 'live', 'event', 'trigger', 'reports', 'summary'].includes(parts[0] ?? '');
+  // Home carries its own record button, so the floating one would duplicate it.
+  const fullScreen = ['record', 'live', 'event', 'trigger', 'reports', 'summary'].includes(parts[0] ?? '')
+    || parts.length === 0;
 
   return (
     <div className="app-shell">

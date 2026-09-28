@@ -37,6 +37,8 @@ export interface ChildProfile {
   id: string;
   family_id: string;
   name: string;
+  /** A sentence about who they are, shown on their profile card. */
+  description?: string | null;
   colour_hue: number;
   birth_year: number | null;
   is_archived: boolean;

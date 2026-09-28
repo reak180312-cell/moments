@@ -244,7 +244,7 @@ export function helpfulSentence(stat: HelpfulStat): string | null {
   }
   if (stat.difficultyDelta !== null && Math.abs(stat.difficultyDelta) >= 0.5) {
     const lower = stat.difficultyDelta < 0;
-    return `Moments where “${stat.name}” was recorded tended to have a ${lower ? 'lower' : 'higher'} recorded difficulty — around ${stat.avgDifficulty}/10.`;
+    return `Moments where “${stat.name}” was recorded tended to have a ${lower ? 'lower' : 'higher'} recorded intensity — around ${stat.avgDifficulty}/10.`;
   }
   return `“${stat.name}” was recorded ${stat.count} time${stat.count === 1 ? '' : 's'}.`;
 }
@@ -325,7 +325,7 @@ export function patterns(events: MomentEvent[], triggers: Vocab[], range: Range,
     const before = summarise(previous, triggers);
     if (now.avgDifficulty !== null && before.avgDifficulty !== null
         && Math.abs(now.avgDifficulty - before.avgDifficulty) >= 0.4) {
-      out.push(`Average recorded difficulty changed from ${before.avgDifficulty} to ${now.avgDifficulty} compared with the period before.`);
+      out.push(`Average recorded intensity changed from ${before.avgDifficulty} to ${now.avgDifficulty} compared with the period before.`);
     }
     if (Math.abs(now.count - before.count) >= 2) {
       const fewer = now.count < before.count;
