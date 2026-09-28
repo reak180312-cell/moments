@@ -837,3 +837,17 @@ body { background: var(--page); }
 .cal-day { background: var(--day-bg, transparent); }
 .cal-day.is-today { box-shadow: inset 0 0 0 2px #3f6fd8; }
 .cal-day.is-selected { background: #3f6fd8; box-shadow: none; }
+
+/* Selection used to paint the square blue, which hid the very colour the
+   day is meant to show. It is a ring now; today is marked by a blue date. */
+.cal-day.is-selected {
+  background: var(--day-bg, var(--surface-2));
+  box-shadow: inset 0 0 0 2px #3f6fd8;
+  color: var(--ink);
+  font-weight: 700;
+}
+.cal-day.is-selected .cal-total { color: var(--day-ink, var(--ink-2)); }
+.cal-day.is-selected .cal-dots i { background: var(--i-dot, var(--i-ink)); }
+
+.cal-day.is-today { box-shadow: none; color: #3f6fd8; font-weight: 700; }
+.cal-day.is-today.is-selected { box-shadow: inset 0 0 0 2px #3f6fd8; color: #3f6fd8; }
