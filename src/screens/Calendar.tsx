@@ -5,6 +5,7 @@ import {
   startOfDay, startOfMonth, startOfWeek,
 } from '../lib/time';
 import { summarise } from '../lib/stats';
+import { monthSlot } from '../lib/github';
 import { EmptyState, Icon } from '../components/ui';
 import { MomentList, StatCell, StatSplit, iClass, showScore } from '../components/moment';
 
@@ -37,7 +38,8 @@ export function CalendarScreen() {
   const selectedEvents = byDay.get(dayKey(selected)) ?? [];
   const stats = summarise(selectedEvents, store.triggers);
   const monthLabel = month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-  const headPhoto = store.photoOf('calendar');
+  // Each month has its own picture; the general one stands in if a month has none.
+  const headPhoto = store.photoOf(monthSlot(month.getMonth() + 1)) ?? store.photoOf('calendar');
 
   const dayWord = stats.avgDifficulty === null
     ? null

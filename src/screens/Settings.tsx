@@ -10,13 +10,22 @@ import { fileToJpegBase64 } from '../lib/image';
 import { PageHead } from '../components/moment';
 import type { PhotoSlot } from '../lib/github';
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
 const PHOTO_LABELS: { slot: PhotoSlot; label: string }[] = [
   { slot: 'profile', label: 'Profile picture' },
   { slot: 'home', label: 'Home' },
   { slot: 'history', label: 'History' },
   { slot: 'insights', label: 'Insights' },
   { slot: 'encourage', label: 'Encouragement' },
-  { slot: 'calendar', label: 'Calendar' },
+  { slot: 'calendar', label: 'Calendar, when a month has none' },
+  ...MONTH_NAMES.map((name, i) => ({
+    slot: `month-${String(i + 1).padStart(2, '0')}` as PhotoSlot,
+    label: name,
+  })),
 ];
 
 type Tone = 'blue' | 'violet' | 'rose' | 'green' | 'amber';

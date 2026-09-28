@@ -555,9 +555,22 @@ export type { FamilyFile, VocabFile };
 
 /* ------------------------------------------------------------- photos */
 
-/** The pictures the app shows, one per place it shows one. */
-export const PHOTO_SLOTS = ['home', 'history', 'insights', 'encourage', 'calendar', 'profile'] as const;
+/** The pictures the app shows: one per place, plus one per month of the year. */
+export const MONTH_SLOTS = [
+  'month-01', 'month-02', 'month-03', 'month-04', 'month-05', 'month-06',
+  'month-07', 'month-08', 'month-09', 'month-10', 'month-11', 'month-12',
+] as const;
+
+export const PHOTO_SLOTS = [
+  'home', 'history', 'insights', 'encourage', 'calendar', 'profile', ...MONTH_SLOTS,
+] as const;
+
 export type PhotoSlot = (typeof PHOTO_SLOTS)[number];
+
+/** The slot for a given month number, 1-12. */
+export function monthSlot(month: number): PhotoSlot {
+  return `month-${String(month).padStart(2, '0')}` as PhotoSlot;
+}
 
 export type PhotoShas = Partial<Record<PhotoSlot, string>>;
 
@@ -573,7 +586,7 @@ export function photoShasFromTree(tree: { path: string; sha: string; type: strin
   const out: PhotoShas = {};
   tree.forEach((node) => {
     if (node.type !== 'blob') return;
-    const match = /^photos\/([a-z]+)\.jpg$/.exec(node.path);
+    const match = /^photos\/([a-z]+(?:-\d{2})?)\.jpg$/.exec(node.path);
     const slot = match?.[1] as PhotoSlot | undefined;
     if (slot && (PHOTO_SLOTS as readonly string[]).includes(slot)) out[slot] = node.sha;
   });
