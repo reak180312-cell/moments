@@ -104,12 +104,7 @@ export function CalendarScreen() {
                   aria-selected={isSelected}
                   onClick={() => setSelected(startOfDay(day))}
                 >
-                  <span aria-hidden="true">{day.getDate()}</span>
-                  <span className="cal-dots" aria-hidden="true">
-                    {list.slice(0, 3).map((e) => (
-                      <i key={e.id} className={iClass(e.difficulty)} />
-                    ))}
-                  </span>
+                  <span className="cal-date" aria-hidden="true">{day.getDate()}</span>
                   {isPast && dayTotal > 0 && (
                     <span className={`cal-total ${dayClass(dayTotal)}`} aria-hidden="true">{dayTotal}</span>
                   )}

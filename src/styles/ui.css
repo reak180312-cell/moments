@@ -851,3 +851,32 @@ body { background: var(--page); }
 
 .cal-day.is-today { box-shadow: none; color: #3f6fd8; font-weight: 700; }
 .cal-day.is-today.is-selected { box-shadow: inset 0 0 0 2px #3f6fd8; color: #3f6fd8; }
+
+/* ------------------------------------------- a day, written as its number */
+/* The date steps back and the day's total becomes the thing you read. The
+   dots said "some moments happened"; the number says how much.            */
+
+.cal-day {
+  min-height: 3.25rem;
+  gap: 0;
+  padding: 0.3125rem 0 0.25rem;
+  align-content: start;
+}
+.cal-date {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--ink-3);
+  line-height: 1;
+}
+.cal-total {
+  font-size: 1.125rem;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin-top: 0.3125rem;
+}
+.cal-day.is-today .cal-date { color: #3f6fd8; font-weight: 700; }
+.cal-day.is-selected .cal-date { font-weight: 700; }
+
+/* A day from a neighbouring month should read as one. */
+.cal-day.is-other .cal-date { opacity: 0.4; }
