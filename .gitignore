@@ -11,4 +11,5 @@ dist-preview
 *.jpg
 *.jpeg
 *.png
-!public/icon*.png
+!public/*.png
+!docs/*.png
