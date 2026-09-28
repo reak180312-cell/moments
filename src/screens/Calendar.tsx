@@ -92,6 +92,7 @@ export function CalendarScreen() {
                   role="gridcell"
                   className={[
                     'cal-day', iClass(peak),
+                    isPast && dayTotal > 0 ? dayClass(dayTotal) : '',
                     otherMonth ? 'is-other' : '',
                     isToday ? 'is-today' : '',
                     isSelected ? 'is-selected' : '',

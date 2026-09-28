@@ -813,3 +813,27 @@ body { background: var(--page); }
 
 .cal-total { color: var(--day-ink, var(--i-ink)); }
 .cal-day.is-selected .cal-total { color: rgba(255, 255, 255, 0.95); }
+
+/* The day's colour fills its square, so a month reads at a glance. */
+.day-1 { --day-bg: #e6f6ec; }
+.day-2 { --day-bg: #eff6e0; }
+.day-3 { --day-bg: #fdf3d7; }
+.day-4 { --day-bg: #fde3cd; }
+.day-5 { --day-bg: #fbd4d0; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .day-1 { --day-bg: #16301f; }
+  :root:not([data-theme="light"]) .day-2 { --day-bg: #222d16; }
+  :root:not([data-theme="light"]) .day-3 { --day-bg: #322715; }
+  :root:not([data-theme="light"]) .day-4 { --day-bg: #3a2518; }
+  :root:not([data-theme="light"]) .day-5 { --day-bg: #40201e; }
+}
+:root[data-theme="dark"] .day-1 { --day-bg: #16301f; }
+:root[data-theme="dark"] .day-2 { --day-bg: #222d16; }
+:root[data-theme="dark"] .day-3 { --day-bg: #322715; }
+:root[data-theme="dark"] .day-4 { --day-bg: #3a2518; }
+:root[data-theme="dark"] .day-5 { --day-bg: #40201e; }
+
+.cal-day { background: var(--day-bg, transparent); }
+.cal-day.is-today { box-shadow: inset 0 0 0 2px #3f6fd8; }
+.cal-day.is-selected { background: #3f6fd8; box-shadow: none; }
