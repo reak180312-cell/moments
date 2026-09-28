@@ -27,7 +27,10 @@ export async function requestNotifications(): Promise<NotificationPermission | '
 function notify(title: string, body: string, tag: string): void {
   if (!notificationsAvailable() || Notification.permission !== 'granted') return;
   try {
-    new Notification(title, { body, tag, icon: '/icon.svg', silent: true });
+    // Resolved against the page, not the domain root: the app is served from
+    // a sub-folder, where a leading slash would miss the icon entirely.
+    const icon = new URL('icon.svg', document.baseURI).href;
+    new Notification(title, { body, tag, icon, silent: true });
   } catch {
     /* some browsers only allow notifications from a service worker */
   }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useRoute } from './lib/router';
 import { useStore } from './data/store';
-import { Button, Card, Icon, Spinner } from './components/ui';
+import { BrandMark, Button, Card, Icon, Spinner } from './components/ui';
 import { ConflictDialog } from './components/ConflictDialog';
 import { QuickRecordSheet } from './components/QuickRecord';
 import { AuthScreen } from './screens/Auth';
@@ -79,7 +79,7 @@ export default function App() {
 function Nav({ path }: { path: string }) {
   return (
     <nav className="nav" aria-label="Main">
-      <span className="nav-brand">Moments</span>
+      <span className="nav-brand"><BrandMark size={22} />Moments</span>
       {TABS.map((tab) => {
         const active = tab.path === '/' ? path === '/' : path.startsWith(tab.path);
         return (

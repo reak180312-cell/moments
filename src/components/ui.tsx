@@ -53,6 +53,39 @@ export function Icon({ name, size = 22, className }: { name: IconName; size?: nu
   );
 }
 
+/**
+ * The Moments mark: the butterfly kite from the beach photo. The wings keep
+ * the kite's own rose and gold; the body takes the surrounding text colour so
+ * it stays legible in either theme. Kept in step with scripts/icons.mjs.
+ */
+export function BrandMark({ size = 22 }: { size?: number }) {
+  const wing = (
+    <>
+      <path d="M256 220 C 296 138 378 84 446 92 C 482 96 486 144 454 192
+               C 416 250 328 282 266 272 Z" fill="#d72b58" />
+      <path d="M256 266 C 310 262 382 292 404 342 C 422 382 386 414 342 404
+               C 296 394 260 344 256 296 Z" fill="#f5bd18" />
+    </>
+  );
+  return (
+    <svg viewBox="0 0 512 512" width={size} height={size} aria-hidden="true" focusable="false">
+      <g transform="translate(0 6) rotate(-9 256 256)">
+        <g>{wing}</g>
+        <g transform="translate(512 0) scale(-1 1)">{wing}</g>
+        <path
+          d="M256 168 C 268 176 272 196 272 232 C 272 292 266 330 256 350
+             C 246 330 240 292 240 232 C 240 196 244 176 256 168 Z"
+          fill="currentColor"
+        />
+        <path d="M250 176 C 236 150 218 138 198 134" fill="none" stroke="currentColor"
+              strokeWidth="9" strokeLinecap="round" />
+        <path d="M262 176 C 276 150 294 138 314 134" fill="none" stroke="currentColor"
+              strokeWidth="9" strokeLinecap="round" />
+      </g>
+    </svg>
+  );
+}
+
 /* ---------------------------------------------------------------- buttons */
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {

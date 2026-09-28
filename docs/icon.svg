@@ -1,12 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Moments">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Moments">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#5a97e8"/>
-      <stop offset="1" stop-color="#2a78d6"/>
+    <linearGradient id="sea" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#35617a"/>
+      <stop offset="1" stop-color="#1e3f57"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="116" fill="url(#g)"/>
-  <path d="M150 300c0-58 47-106 106-106s106 48 106 106" fill="none" stroke="#fff" stroke-width="30" stroke-linecap="round" opacity="0.55"/>
-  <circle cx="256" cy="300" r="34" fill="#fff"/>
-  <path d="M256 194v-52" stroke="#fff" stroke-width="30" stroke-linecap="round"/>
+  <rect width="512" height="512" rx="116" fill="url(#sea)"/>
+  <g transform="translate(30.72 30.72) scale(0.88)">
+  <g transform="translate(0 6) rotate(-9 256 256)">
+    <g>
+    <path d="M256 220 C 296 138 378 84 446 92 C 482 96 486 144 454 192
+             C 416 250 328 282 266 272 Z" fill="#d72b58"/>
+    <path d="M256 266 C 310 262 382 292 404 342 C 422 382 386 414 342 404
+             C 296 394 260 344 256 296 Z" fill="#f5bd18"/></g>
+    <g transform="translate(512 0) scale(-1 1)">
+    <path d="M256 220 C 296 138 378 84 446 92 C 482 96 486 144 454 192
+             C 416 250 328 282 266 272 Z" fill="#d72b58"/>
+    <path d="M256 266 C 310 262 382 292 404 342 C 422 382 386 414 342 404
+             C 296 394 260 344 256 296 Z" fill="#f5bd18"/></g>
+    <path d="M256 168 C 268 176 272 196 272 232 C 272 292 266 330 256 350
+             C 246 330 240 292 240 232 C 240 196 244 176 256 168 Z" fill="#cce6e7"/>
+    <path d="M250 176 C 236 150 218 138 198 134" fill="none" stroke="#cce6e7"
+          stroke-width="9" stroke-linecap="round"/>
+    <path d="M262 176 C 276 150 294 138 314 134" fill="none" stroke="#cce6e7"
+          stroke-width="9" stroke-linecap="round"/>
+  </g></g>
 </svg>
