@@ -186,10 +186,6 @@ body {
   90%, 100% { transform: translateX(130%); }
 }
 
-.fab {
-  background: linear-gradient(140deg, color-mix(in srgb, var(--cat-7) 80%, #000), var(--accent) 72%);
-  box-shadow: 0 12px 30px color-mix(in srgb, var(--cat-1) 38%, transparent);
-}
 
 /* ---------------------------------------- timeline rows carry an identity */
 

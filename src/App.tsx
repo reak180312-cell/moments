@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { navigate, useRoute } from './lib/router';
+import { useState } from 'react';
+import { useRoute } from './lib/router';
 import { useStore } from './data/store';
 import { Button, Card, Icon, Spinner } from './components/ui';
 import { ConflictDialog } from './components/ConflictDialog';
@@ -60,16 +60,11 @@ export default function App() {
   else if (parts[0] === 'reports') screen = <ReportsScreen />;
   else if (parts[0] === 'summary') screen = <WeeklySummaryScreen />;
 
-  // Home carries its own record button, so the floating one would duplicate it.
-  const fullScreen = ['record', 'live', 'event', 'trigger', 'reports', 'summary'].includes(parts[0] ?? '')
-    || parts.length === 0;
-
   return (
     <div className="app-shell">
       <a href="#main" className="sr-only">Skip to content</a>
       <Nav path={path} />
       <main id="main" style={{ flex: 1, minWidth: 0 }}>{screen}</main>
-      {!fullScreen && store.perms.add && <RecordFab onQuick={() => setQuickOpen(true)} />}
       {quickOpen && <QuickRecordSheet onClose={() => setQuickOpen(false)} />}
       {conflict && (
         <ConflictDialog
@@ -98,43 +93,6 @@ function Nav({ path }: { path: string }) {
         );
       })}
     </nav>
-  );
-}
-
-/** Tap records a moment; press and hold opens Quick Record. */
-function RecordFab({ onQuick }: { onQuick: () => void }) {
-  const timer = useRef<number | null>(null);
-  const held = useRef(false);
-
-  const start = () => {
-    held.current = false;
-    timer.current = window.setTimeout(() => {
-      held.current = true;
-      if ('vibrate' in navigator) navigator.vibrate?.(12);
-      onQuick();
-    }, 450);
-  };
-  const end = () => {
-    if (timer.current) window.clearTimeout(timer.current);
-    timer.current = null;
-  };
-
-  useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
-
-  return (
-    <button
-      type="button"
-      className="fab"
-      aria-label="Record a moment. Press and hold for quick record."
-      onPointerDown={start}
-      onPointerUp={end}
-      onPointerLeave={end}
-      onPointerCancel={end}
-      onContextMenu={(e) => e.preventDefault()}
-      onClick={() => { if (!held.current) navigate('/record'); }}
-    >
-      <Icon name="plus" size={28} />
-    </button>
   );
 }
 
