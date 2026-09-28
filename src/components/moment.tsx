@@ -135,7 +135,6 @@ export function MomentCard({ event, showDate }: { event: MomentEvent; showDate?:
       >
         <span className={`score-tile ${iClass(event.difficulty)}`} aria-hidden="true">
           <b>{showScore(event.difficulty)}</b>
-          <span>/ 10</span>
         </span>
 
         <span className="moment-body">

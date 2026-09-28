@@ -80,6 +80,10 @@ export function CalendarScreen() {
               const isSelected = isSameDay(day, selected);
               const scores = list.map((e) => e.difficulty).filter((n): n is number => typeof n === 'number');
               const peak = scores.length ? Math.max(...scores) : null;
+              // The weight of a day: every score it collected, added up. Only
+              // for days that have happened, and only when there is something.
+              const dayTotal = scores.reduce((sum, n) => sum + n, 0);
+              const isPast = startOfDay(day).getTime() <= startOfDay(new Date()).getTime();
 
               return (
                 <button
@@ -94,7 +98,7 @@ export function CalendarScreen() {
                   ].filter(Boolean).join(' ')}
                   aria-label={
                     `${formatDayLabel(day)}: ${list.length} moment${list.length === 1 ? '' : 's'}` +
-                    (peak ? `, highest recorded intensity ${peak} out of 10` : '')
+                    (dayTotal ? `, ${dayTotal} altogether` : '')
                   }
                   aria-selected={isSelected}
                   onClick={() => setSelected(startOfDay(day))}
@@ -105,6 +109,9 @@ export function CalendarScreen() {
                       <i key={e.id} className={iClass(e.difficulty)} />
                     ))}
                   </span>
+                  {isPast && dayTotal > 0 && (
+                    <span className="cal-total" aria-hidden="true">{dayTotal}</span>
+                  )}
                 </button>
               );
             })}
